@@ -11,10 +11,14 @@ private final class StubContainerRuntime: ContainerRuntime, @unchecked Sendable 
 
     let stubbedContainer: RunningContainer
 
-    init(stubbedContainer: RunningContainer = RunningContainer(
-        id: "stub-1", name: "stub", image: "stub:latest",
-        ports: [ResolvedPortMapping(containerPort: 80, hostPort: 32000)]
-    )) {
+    init(
+        stubbedContainer: RunningContainer = RunningContainer(
+            id: "stub-1",
+            name: "stub",
+            image: "stub:latest",
+            ports: [ResolvedPortMapping(containerPort: 80, hostPort: 32000)]
+        )
+    ) {
         self.stubbedContainer = stubbedContainer
     }
 
@@ -90,7 +94,7 @@ struct PlatformRuntimeTests {
         let throwingRuntime = ThrowingRuntime()
         let runtime = PlatformRuntime(runtime: throwingRuntime)
 
-        _ = stub // suppress warning
+        _ = stub  // suppress warning
 
         await #expect(throws: ContainerError.self) {
             try await runtime.pullImage("bad:image")

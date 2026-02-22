@@ -5,12 +5,11 @@ import PackageDescription
 let package = Package(
     name: "swift-local-containers",
     platforms: [
-        .macOS(.v15),
+        .macOS(.v15)
     ],
     products: [
         .library(name: "LocalContainers", targets: ["LocalContainers"]),
         .library(name: "DockerRuntime", targets: ["DockerRuntime"]),
-        .library(name: "ContainerizationRuntime", targets: ["ContainerizationRuntime"]),
         .library(name: "PlatformRuntime", targets: ["PlatformRuntime"]),
         .library(name: "LocalStack", targets: ["LocalStack"]),
         .library(name: "ContainerTestSupport", targets: ["ContainerTestSupport"]),
@@ -18,7 +17,6 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
-        .package(url: "https://github.com/apple/containerization.git", branch: "main"),
     ],
     targets: [
         // MARK: - Core
@@ -26,7 +24,7 @@ let package = Package(
         .target(
             name: "LocalContainers",
             dependencies: [
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 
@@ -41,15 +39,6 @@ let package = Package(
             ]
         ),
 
-        .target(
-            name: "ContainerizationRuntime",
-            dependencies: [
-                "LocalContainers",
-                .product(name: "Containerization", package: "containerization"),
-                .product(name: "Logging", package: "swift-log"),
-            ]
-        ),
-
         // MARK: - Platform Auto-Selection
 
         .target(
@@ -57,7 +46,6 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 "DockerRuntime",
-                "ContainerizationRuntime",
             ]
         ),
 
@@ -127,3 +115,33 @@ let package = Package(
         ),
     ]
 )
+
+// MARK: - macOS-only: Apple Containerization backend
+
+#if os(macOS)
+package.dependencies.append(
+    .package(url: "https://github.com/apple/containerization.git", branch: "main")
+)
+
+package.products.append(
+    .library(name: "ContainerizationRuntime", targets: ["ContainerizationRuntime"])
+)
+
+package.targets.append(
+    .target(
+        name: "ContainerizationRuntime",
+        dependencies: [
+            "LocalContainers",
+            .product(name: "Containerization", package: "containerization"),
+            .product(name: "Logging", package: "swift-log"),
+        ]
+    )
+)
+
+// Add ContainerizationRuntime as a dependency of PlatformRuntime on macOS
+if let platformIdx = package.targets.firstIndex(where: { $0.name == "PlatformRuntime" }) {
+    package.targets[platformIdx].dependencies.append(
+        .targetItem(name: "ContainerizationRuntime", condition: nil)
+    )
+}
+#endif

@@ -7,7 +7,7 @@ public enum DockerPortResolver {
     public static func resolve(
         from networkSettings: InspectContainerResponse.NetworkSettings
     ) -> [ResolvedPortMapping] {
-        guard let portMap = networkSettings.Ports else { return [] }
+        guard let portMap = networkSettings.ports else { return [] }
 
         var resolved: [ResolvedPortMapping] = []
 
@@ -17,8 +17,8 @@ public enum DockerPortResolver {
             guard let containerPort else { continue }
 
             for binding in bindings {
-                guard let hostPortString = binding.HostPort,
-                      let hostPort = UInt16(hostPortString)
+                guard let hostPortString = binding.hostPort,
+                    let hostPort = UInt16(hostPortString)
                 else { continue }
 
                 resolved.append(

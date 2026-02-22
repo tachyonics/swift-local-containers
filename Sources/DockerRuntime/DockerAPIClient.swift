@@ -33,7 +33,7 @@ public struct DockerAPIClient: Sendable {
         _ request: CreateContainerRequest,
         name: String? = nil
     ) async throws -> CreateContainerResponse {
-        logger.info("Creating container", metadata: ["image": "\(request.Image)"])
+        logger.info("Creating container", metadata: ["image": "\(request.image)"])
         // TODO: POST /containers/create
         throw ContainerError.runtimeError("DockerAPIClient.createContainer not yet implemented")
     }

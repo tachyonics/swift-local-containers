@@ -13,13 +13,13 @@ struct DockerContainerRuntimeBuildRequestTests {
         let config = ContainerConfiguration(image: "nginx:latest")
         let request = runtime.buildCreateRequest(from: config)
 
-        #expect(request.Image == "nginx:latest")
-        #expect(request.Env == nil)
-        #expect(request.Cmd == nil)
-        #expect(request.ExposedPorts == nil)
-        #expect(request.Healthcheck == nil)
-        #expect(request.HostConfig?.PortBindings == nil)
-        #expect(request.HostConfig?.Binds == nil)
+        #expect(request.image == "nginx:latest")
+        #expect(request.env == nil)
+        #expect(request.cmd == nil)
+        #expect(request.exposedPorts == nil)
+        #expect(request.healthcheck == nil)
+        #expect(request.hostConfig?.portBindings == nil)
+        #expect(request.hostConfig?.binds == nil)
     }
 
     @Test("Environment variables are formatted as KEY=VALUE")
@@ -30,10 +30,10 @@ struct DockerContainerRuntimeBuildRequestTests {
         )
         let request = runtime.buildCreateRequest(from: config)
 
-        #expect(request.Env != nil)
-        #expect(request.Env?.count == 2)
-        #expect(request.Env?.contains("POSTGRES_PASSWORD=secret") == true)
-        #expect(request.Env?.contains("POSTGRES_DB=test") == true)
+        #expect(request.env != nil)
+        #expect(request.env?.count == 2)
+        #expect(request.env?.contains("POSTGRES_PASSWORD=secret") == true)
+        #expect(request.env?.contains("POSTGRES_DB=test") == true)
     }
 
     @Test("Command override is passed through")
@@ -44,7 +44,7 @@ struct DockerContainerRuntimeBuildRequestTests {
         )
         let request = runtime.buildCreateRequest(from: config)
 
-        #expect(request.Cmd == ["postgres", "-c", "log_statement=all"])
+        #expect(request.cmd == ["postgres", "-c", "log_statement=all"])
     }
 
     @Test("Port mappings generate ExposedPorts and PortBindings")
@@ -58,16 +58,16 @@ struct DockerContainerRuntimeBuildRequestTests {
         )
         let request = runtime.buildCreateRequest(from: config)
 
-        #expect(request.ExposedPorts?["80/tcp"] != nil)
-        #expect(request.ExposedPorts?["443/tcp"] != nil)
+        #expect(request.exposedPorts?["80/tcp"] != nil)
+        #expect(request.exposedPorts?["443/tcp"] != nil)
 
-        let binding80 = request.HostConfig?.PortBindings?["80/tcp"]
+        let binding80 = request.hostConfig?.portBindings?["80/tcp"]
         #expect(binding80?.count == 1)
-        #expect(binding80?[0].HostPort == "8080")
+        #expect(binding80?[0].hostPort == "8080")
 
         // No host port specified → empty string (Docker assigns random port)
-        let binding443 = request.HostConfig?.PortBindings?["443/tcp"]
-        #expect(binding443?[0].HostPort == "")
+        let binding443 = request.hostConfig?.portBindings?["443/tcp"]
+        #expect(binding443?[0].hostPort == "")
     }
 
     @Test("UDP port uses correct protocol key")
@@ -78,8 +78,8 @@ struct DockerContainerRuntimeBuildRequestTests {
         )
         let request = runtime.buildCreateRequest(from: config)
 
-        #expect(request.ExposedPorts?["53/udp"] != nil)
-        #expect(request.HostConfig?.PortBindings?["53/udp"] != nil)
+        #expect(request.exposedPorts?["53/udp"] != nil)
+        #expect(request.hostConfig?.portBindings?["53/udp"] != nil)
     }
 
     @Test("Volume mounts generate Binds strings")
@@ -93,7 +93,7 @@ struct DockerContainerRuntimeBuildRequestTests {
         )
         let request = runtime.buildCreateRequest(from: config)
 
-        let binds = request.HostConfig?.Binds
+        let binds = request.hostConfig?.binds
         #expect(binds?.count == 2)
         #expect(binds?.contains("/data:/var/data") == true)
         #expect(binds?.contains("/config:/etc/config:ro") == true)
@@ -113,11 +113,11 @@ struct DockerContainerRuntimeBuildRequestTests {
         )
         let request = runtime.buildCreateRequest(from: config)
 
-        #expect(request.Healthcheck?.Test == ["CMD", "curl", "-f", "http://localhost/"])
-        #expect(request.Healthcheck?.Interval == 10_000_000_000)
-        #expect(request.Healthcheck?.Timeout == 5_000_000_000)
-        #expect(request.Healthcheck?.Retries == 3)
-        #expect(request.Healthcheck?.StartPeriod == 2_000_000_000)
+        #expect(request.healthcheck?.test == ["CMD", "curl", "-f", "http://localhost/"])
+        #expect(request.healthcheck?.interval == 10_000_000_000)
+        #expect(request.healthcheck?.timeout == 5_000_000_000)
+        #expect(request.healthcheck?.retries == 3)
+        #expect(request.healthcheck?.startPeriod == 2_000_000_000)
     }
 
     @Test("Full config round-trips through JSON encoding")
@@ -134,11 +134,11 @@ struct DockerContainerRuntimeBuildRequestTests {
         let data = try JSONEncoder().encode(request)
         let decoded = try JSONDecoder().decode(CreateContainerRequest.self, from: data)
 
-        #expect(decoded.Image == "app:v2")
-        #expect(decoded.Cmd == ["serve", "--port", "8080"])
-        #expect(decoded.Env == ["FOO=bar"])
-        #expect(decoded.ExposedPorts?["8080/tcp"] != nil)
-        #expect(decoded.HostConfig?.PortBindings?["8080/tcp"]?[0].HostPort == "9090")
-        #expect(decoded.HostConfig?.Binds == ["/tmp:/data"])
+        #expect(decoded.image == "app:v2")
+        #expect(decoded.cmd == ["serve", "--port", "8080"])
+        #expect(decoded.env == ["FOO=bar"])
+        #expect(decoded.exposedPorts?["8080/tcp"] != nil)
+        #expect(decoded.hostConfig?.portBindings?["8080/tcp"]?[0].hostPort == "9090")
+        #expect(decoded.hostConfig?.binds == ["/tmp:/data"])
     }
 }
