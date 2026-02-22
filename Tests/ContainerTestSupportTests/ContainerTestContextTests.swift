@@ -24,12 +24,16 @@ private struct Unregistered: ContainerKey {
 @Suite("ContainerTestContext")
 struct ContainerTestContextTests {
     private static let dbContainer = RunningContainer(
-        id: "pg-1", name: "postgres", image: "postgres:16",
+        id: "pg-1",
+        name: "postgres",
+        image: "postgres:16",
         ports: [ResolvedPortMapping(containerPort: 5432, hostPort: 54320)]
     )
 
     private static let cacheContainer = RunningContainer(
-        id: "redis-1", name: "redis", image: "redis:7",
+        id: "redis-1",
+        name: "redis",
+        image: "redis:7",
         ports: [ResolvedPortMapping(containerPort: 6379, hostPort: 63790)]
     )
 
@@ -51,7 +55,7 @@ struct ContainerTestContextTests {
     @Test("Subscript throws for an unregistered key")
     func lookupMissingKey() {
         let ctx = ContainerTestContext(containers: [
-            ObjectIdentifier(FakeDB.self): Self.dbContainer,
+            ObjectIdentifier(FakeDB.self): Self.dbContainer
         ])
 
         #expect(throws: ContainerError.self) {
@@ -76,7 +80,7 @@ struct ContainerTestContextTests {
     @Test("TaskLocal current is set within withValue scope")
     func taskLocalWithValue() async {
         let ctx = ContainerTestContext(containers: [
-            ObjectIdentifier(FakeDB.self): Self.dbContainer,
+            ObjectIdentifier(FakeDB.self): Self.dbContainer
         ])
 
         await ContainerTestContext.$current.withValue(ctx) {

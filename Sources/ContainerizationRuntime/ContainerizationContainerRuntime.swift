@@ -45,7 +45,8 @@ public struct ContainerizationContainerRuntime: ContainerRuntime {
 
     public func removeContainer(_ container: RunningContainer) async throws {
         logger.info(
-            "Removing container via Containerization", metadata: ["id": "\(container.id)"]
+            "Removing container via Containerization",
+            metadata: ["id": "\(container.id)"]
         )
         // TODO: Remove the VM and its resources
         throw ContainerError.runtimeError(

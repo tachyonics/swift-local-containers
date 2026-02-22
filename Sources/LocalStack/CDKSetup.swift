@@ -43,11 +43,14 @@ public struct CDKSetup: ContainerSetup {
 
     public func setUp(container: RunningContainer) async throws {
         let endpoint = try LocalStackEndpoint(container: container).awsEndpoint()
-        logger.info("CDK setup starting", metadata: [
-            "stack": "\(stackName)",
-            "endpoint": "\(endpoint)",
-            "cdkApp": "\(cdkAppPath)",
-        ])
+        logger.info(
+            "CDK setup starting",
+            metadata: [
+                "stack": "\(stackName)",
+                "endpoint": "\(endpoint)",
+                "cdkApp": "\(cdkAppPath)",
+            ]
+        )
 
         // 1. Bootstrap (if enabled)
         if autoBootstrap {

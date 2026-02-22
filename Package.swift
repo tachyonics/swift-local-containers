@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "swift-local-containers",
     platforms: [
-        .macOS(.v15),
+        .macOS(.v15)
     ],
     products: [
         .library(name: "LocalContainers", targets: ["LocalContainers"]),
@@ -26,7 +26,7 @@ let package = Package(
         .target(
             name: "LocalContainers",
             dependencies: [
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 

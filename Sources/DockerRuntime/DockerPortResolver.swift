@@ -18,7 +18,7 @@ public enum DockerPortResolver {
 
             for binding in bindings {
                 guard let hostPortString = binding.HostPort,
-                      let hostPort = UInt16(hostPortString)
+                    let hostPort = UInt16(hostPortString)
                 else { continue }
 
                 resolved.append(

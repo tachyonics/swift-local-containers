@@ -78,7 +78,8 @@ public struct DockerContainerRuntime: ContainerRuntime {
 
         var binds: [String] = []
         for vol in config.volumes {
-            let bind = vol.readOnly
+            let bind =
+                vol.readOnly
                 ? "\(vol.hostPath):\(vol.containerPath):ro"
                 : "\(vol.hostPath):\(vol.containerPath)"
             binds.append(bind)
