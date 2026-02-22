@@ -1,8 +1,9 @@
+import DockerRuntime
+import LocalContainers
+
 #if canImport(ContainerizationRuntime)
 import ContainerizationRuntime
 #endif
-import DockerRuntime
-import LocalContainers
 
 /// A ``ContainerRuntime`` that automatically selects the appropriate backend
 /// for the current platform.
