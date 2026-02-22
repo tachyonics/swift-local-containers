@@ -1,5 +1,5 @@
 {
-  "originHash" : "0db6009826d9c8f8232c79e771e2ee6679822433009f831f00c555e7acf11db4",
+  "originHash" : "8a842a23040b58f3cdc3ee07c56be7549a1052643313b802de9d987da56b98b8",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "9b92dcd5c22ae17016ad867852e0850f1f9f93ed",
-        "version" : "2.94.1"
+        "revision" : "e932d3c4d8f77433c8f7093b5ebcbf91463948a0",
+        "version" : "2.95.0"
       }
     },
     {
@@ -168,8 +168,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-http2.git",
       "state" : {
-        "revision" : "979f431f1f1e75eb61562440cb2862a70d791d3d",
-        "version" : "1.39.1"
+        "revision" : "b6571f3db40799df5a7fc0e92c399aa71c883edd",
+        "version" : "1.40.0"
       }
     },
     {
@@ -220,10 +220,10 @@
     {
       "identity" : "swift-service-lifecycle",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swift-server/swift-service-lifecycle.git",
+      "location" : "https://github.com/swift-server/swift-service-lifecycle",
       "state" : {
-        "revision" : "1de37290c0ab3c5a96028e0f02911b672fd42348",
-        "version" : "2.9.1"
+        "revision" : "89888196dd79c61c50bca9a103d8114f32e1e598",
+        "version" : "2.10.1"
       }
     },
     {
