@@ -42,9 +42,15 @@ private final class MockContainerRuntime: ContainerRuntime, @unchecked Sendable 
 
 // MARK: - TCP Helper
 
+#if canImport(Glibc) || canImport(Musl)
+private let sockStream = Int32(SOCK_STREAM.rawValue)
+#else
+private let sockStream = SOCK_STREAM
+#endif
+
 /// Creates a TCP listener on an OS-assigned port and returns (file descriptor, port).
 private func createTCPListener() throws -> (fd: Int32, port: UInt16) {
-    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    let fd = socket(AF_INET, sockStream, 0)
     guard fd >= 0 else {
         throw ContainerError.runtimeError("Failed to create socket")
     }
