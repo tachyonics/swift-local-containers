@@ -1,3 +1,7 @@
+import Testing
+
+@testable import LocalContainers
+
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -5,10 +9,6 @@ import Glibc
 #elseif canImport(Musl)
 import Musl
 #endif
-
-import Testing
-
-@testable import LocalContainers
 
 // MARK: - Mock Runtime
 

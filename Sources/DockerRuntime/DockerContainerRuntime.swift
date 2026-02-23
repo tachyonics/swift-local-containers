@@ -56,12 +56,13 @@ public struct DockerContainerRuntime: ContainerRuntime {
 
     public func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
         let response = try await client.inspectContainer(id: container.id)
-        let healthStatus: HealthStatus = switch response.state.health?.status {
-        case "healthy": .healthy
-        case "unhealthy": .unhealthy
-        case "starting": .starting
-        default: .notConfigured
-        }
+        let healthStatus: HealthStatus =
+            switch response.state.health?.status {
+            case "healthy": .healthy
+            case "unhealthy": .unhealthy
+            case "starting": .starting
+            default: .notConfigured
+            }
         return ContainerInspection(isRunning: response.state.running, healthStatus: healthStatus)
     }
 
