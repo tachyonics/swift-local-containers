@@ -83,7 +83,7 @@ struct ContainerTestContextTests {
             ObjectIdentifier(FakeDB.self): Self.dbContainer
         ])
 
-        await ContainerTestContext.$current.withValue(ctx) {
+        ContainerTestContext.$current.withValue(ctx) {
             let current = ContainerTestContext.current
             #expect(current != nil)
             let db = try? current?[FakeDB.self]
