@@ -31,11 +31,14 @@ public struct CloudFormationSetup: ContainerSetup {
 
     public func setUp(container: RunningContainer) async throws {
         let endpoint = try LocalStackEndpoint(container: container).awsEndpoint()
-        logger.info("Deploying CF stack", metadata: [
-            "stack": "\(stackName)",
-            "endpoint": "\(endpoint)",
-            "template": "\(templatePath)",
-        ])
+        logger.info(
+            "Deploying CF stack",
+            metadata: [
+                "stack": "\(stackName)",
+                "endpoint": "\(endpoint)",
+                "template": "\(templatePath)",
+            ]
+        )
 
         // 1. Read template
         let templateURL = URL(fileURLWithPath: templatePath)

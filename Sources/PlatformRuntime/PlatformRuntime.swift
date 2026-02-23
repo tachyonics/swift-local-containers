@@ -1,6 +1,9 @@
-import ContainerizationRuntime
 import DockerRuntime
 import LocalContainers
+
+#if canImport(ContainerizationRuntime)
+import ContainerizationRuntime
+#endif
 
 /// A ``ContainerRuntime`` that automatically selects the appropriate backend
 /// for the current platform.
@@ -15,7 +18,7 @@ public struct PlatformRuntime: ContainerRuntime {
 
     /// Creates a `PlatformRuntime` using the default backend for the current platform.
     public init() {
-        #if os(macOS)
+        #if canImport(ContainerizationRuntime)
         self.underlying = ContainerizationContainerRuntime()
         #else
         self.underlying = DockerContainerRuntime()

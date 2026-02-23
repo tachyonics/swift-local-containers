@@ -11,7 +11,7 @@ struct LocalStackEndpointTests {
         image: "localstack/localstack:latest",
         host: "127.0.0.1",
         ports: [
-            ResolvedPortMapping(containerPort: 4566, hostPort: 49152),
+            ResolvedPortMapping(containerPort: 4566, hostPort: 49152)
         ]
     )
 
@@ -62,7 +62,7 @@ struct LocalStackEndpointTests {
             name: "localstack",
             image: "localstack/localstack:latest",
             ports: [
-                ResolvedPortMapping(containerPort: 4510, hostPort: 49200),
+                ResolvedPortMapping(containerPort: 4510, hostPort: 49200)
             ]
         )
         let ep = LocalStackEndpoint(container: container, gatewayPort: 4510)

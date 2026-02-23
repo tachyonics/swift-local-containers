@@ -1,31 +1,40 @@
 /// Codable types matching the Docker Engine API JSON structures.
 ///
-/// Names follow Docker's conventions to minimise custom `CodingKeys`.
+/// Properties use Swift naming conventions; `CodingKeys` map to Docker's JSON keys.
 
 // MARK: - Create Container
 
 public struct CreateContainerRequest: Codable, Sendable {
-    public var Image: String
-    public var Env: [String]?
-    public var Cmd: [String]?
-    public var ExposedPorts: [String: EmptyObject]?
-    public var HostConfig: HostConfig?
-    public var Healthcheck: Healthcheck?
+    public var image: String
+    public var env: [String]?
+    public var cmd: [String]?
+    public var exposedPorts: [String: EmptyObject]?
+    public var hostConfig: HostConfig?
+    public var healthcheck: Healthcheck?
 
     public init(
-        Image: String,
-        Env: [String]? = nil,
-        Cmd: [String]? = nil,
-        ExposedPorts: [String: EmptyObject]? = nil,
-        HostConfig: HostConfig? = nil,
-        Healthcheck: Healthcheck? = nil
+        image: String,
+        env: [String]? = nil,
+        cmd: [String]? = nil,
+        exposedPorts: [String: EmptyObject]? = nil,
+        hostConfig: HostConfig? = nil,
+        healthcheck: Healthcheck? = nil
     ) {
-        self.Image = Image
-        self.Env = Env
-        self.Cmd = Cmd
-        self.ExposedPorts = ExposedPorts
-        self.HostConfig = HostConfig
-        self.Healthcheck = Healthcheck
+        self.image = image
+        self.env = env
+        self.cmd = cmd
+        self.exposedPorts = exposedPorts
+        self.hostConfig = hostConfig
+        self.healthcheck = healthcheck
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case image = "Image"
+        case env = "Env"
+        case cmd = "Cmd"
+        case exposedPorts = "ExposedPorts"
+        case hostConfig = "HostConfig"
+        case healthcheck = "Healthcheck"
     }
 }
 
@@ -34,79 +43,128 @@ public struct EmptyObject: Codable, Sendable {
 }
 
 public struct HostConfig: Codable, Sendable {
-    public var PortBindings: [String: [PortBinding]]?
-    public var Binds: [String]?
+    public var portBindings: [String: [PortBinding]]?
+    public var binds: [String]?
 
     public init(
-        PortBindings: [String: [PortBinding]]? = nil,
-        Binds: [String]? = nil
+        portBindings: [String: [PortBinding]]? = nil,
+        binds: [String]? = nil
     ) {
-        self.PortBindings = PortBindings
-        self.Binds = Binds
+        self.portBindings = portBindings
+        self.binds = binds
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case portBindings = "PortBindings"
+        case binds = "Binds"
     }
 }
 
 public struct PortBinding: Codable, Sendable {
-    public var HostIp: String?
-    public var HostPort: String?
+    public var hostIp: String?
+    public var hostPort: String?
 
-    public init(HostIp: String? = nil, HostPort: String? = nil) {
-        self.HostIp = HostIp
-        self.HostPort = HostPort
+    public init(hostIp: String? = nil, hostPort: String? = nil) {
+        self.hostIp = hostIp
+        self.hostPort = hostPort
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case hostIp = "HostIp"
+        case hostPort = "HostPort"
     }
 }
 
 public struct Healthcheck: Codable, Sendable {
-    public var Test: [String]?
-    public var Interval: Int?
-    public var Timeout: Int?
-    public var Retries: Int?
-    public var StartPeriod: Int?
+    public var test: [String]?
+    public var interval: Int?
+    public var timeout: Int?
+    public var retries: Int?
+    public var startPeriod: Int?
 
     public init(
-        Test: [String]? = nil,
-        Interval: Int? = nil,
-        Timeout: Int? = nil,
-        Retries: Int? = nil,
-        StartPeriod: Int? = nil
+        test: [String]? = nil,
+        interval: Int? = nil,
+        timeout: Int? = nil,
+        retries: Int? = nil,
+        startPeriod: Int? = nil
     ) {
-        self.Test = Test
-        self.Interval = Interval
-        self.Timeout = Timeout
-        self.Retries = Retries
-        self.StartPeriod = StartPeriod
+        self.test = test
+        self.interval = interval
+        self.timeout = timeout
+        self.retries = retries
+        self.startPeriod = startPeriod
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case test = "Test"
+        case interval = "Interval"
+        case timeout = "Timeout"
+        case retries = "Retries"
+        case startPeriod = "StartPeriod"
     }
 }
 
 public struct CreateContainerResponse: Codable, Sendable {
-    public var Id: String
-    public var Warnings: [String]?
+    public var id: String
+    public var warnings: [String]?
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case warnings = "Warnings"
+    }
 }
 
 // MARK: - Inspect Container
 
 public struct InspectContainerResponse: Codable, Sendable {
-    public var Id: String
-    public var Name: String
-    public var State: ContainerState
-    public var NetworkSettings: NetworkSettings
+    public var id: String
+    public var name: String
+    public var state: ContainerState
+    public var networkSettings: NetworkSettings
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case name = "Name"
+        case state = "State"
+        case networkSettings = "NetworkSettings"
+    }
 
     public struct ContainerState: Codable, Sendable {
-        public var Status: String
-        public var Running: Bool
-        public var Health: HealthState?
+        public var status: String
+        public var running: Bool
+        public var health: HealthState?
+
+        private enum CodingKeys: String, CodingKey {
+            case status = "Status"
+            case running = "Running"
+            case health = "Health"
+        }
     }
 
     public struct HealthState: Codable, Sendable {
-        public var Status: String
+        public var status: String
+
+        private enum CodingKeys: String, CodingKey {
+            case status = "Status"
+        }
     }
 
     public struct NetworkSettings: Codable, Sendable {
-        public var Ports: [String: [PortMapping]?]?
+        public var ports: [String: [PortMapping]?]?
+
+        private enum CodingKeys: String, CodingKey {
+            case ports = "Ports"
+        }
 
         public struct PortMapping: Codable, Sendable {
-            public var HostIp: String?
-            public var HostPort: String?
+            public var hostIp: String?
+            public var hostPort: String?
+
+            private enum CodingKeys: String, CodingKey {
+                case hostIp = "HostIp"
+                case hostPort = "HostPort"
+            }
         }
     }
 }

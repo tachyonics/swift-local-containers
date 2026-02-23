@@ -75,10 +75,13 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
                 try await runtime.stopContainer(container)
                 try await runtime.removeContainer(container)
             } catch {
-                logger.warning("Failed to clean up container", metadata: [
-                    "id": "\(container.id)",
-                    "error": "\(error)",
-                ])
+                logger.warning(
+                    "Failed to clean up container",
+                    metadata: [
+                        "id": "\(container.id)",
+                        "error": "\(error)",
+                    ]
+                )
             }
         }
     }

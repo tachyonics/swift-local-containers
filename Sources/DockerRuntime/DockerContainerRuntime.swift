@@ -31,15 +31,15 @@ public struct DockerContainerRuntime: ContainerRuntime {
         let response = try await client.createContainer(request, name: configuration.name)
 
         // Start the container
-        try await client.startContainer(id: response.Id)
+        try await client.startContainer(id: response.id)
 
         // Inspect to get resolved ports
-        let inspection = try await client.inspectContainer(id: response.Id)
-        let resolvedPorts = DockerPortResolver.resolve(from: inspection.NetworkSettings)
+        let inspection = try await client.inspectContainer(id: response.id)
+        let resolvedPorts = DockerPortResolver.resolve(from: inspection.networkSettings)
 
         return RunningContainer(
-            id: response.Id,
-            name: inspection.Name,
+            id: response.id,
+            name: inspection.name,
             image: configuration.image,
             host: "127.0.0.1",
             ports: resolvedPorts
@@ -54,7 +54,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
         try await client.removeContainer(id: container.id, force: true)
     }
 
-    // MARK: - Private
+    // MARK: - Internal
 
     func buildCreateRequest(
         from config: ContainerConfiguration
@@ -70,15 +70,16 @@ public struct DockerContainerRuntime: ContainerRuntime {
             let key = "\(mapping.containerPort)/\(mapping.protocol.rawValue)"
             exposedPorts[key] = EmptyObject()
             let binding = PortBinding(
-                HostIp: "0.0.0.0",
-                HostPort: mapping.hostPort.map(String.init) ?? ""
+                hostIp: "0.0.0.0",
+                hostPort: mapping.hostPort.map(String.init) ?? ""
             )
             portBindings[key] = [binding]
         }
 
         var binds: [String] = []
         for vol in config.volumes {
-            let bind = vol.readOnly
+            let bind =
+                vol.readOnly
                 ? "\(vol.hostPath):\(vol.containerPath):ro"
                 : "\(vol.hostPath):\(vol.containerPath)"
             binds.append(bind)
@@ -87,24 +88,24 @@ public struct DockerContainerRuntime: ContainerRuntime {
         var healthcheck: Healthcheck?
         if let hc = config.healthCheck {
             healthcheck = Healthcheck(
-                Test: hc.test,
-                Interval: Int(hc.interval.components.seconds) * 1_000_000_000,
-                Timeout: Int(hc.timeout.components.seconds) * 1_000_000_000,
-                Retries: hc.retries,
-                StartPeriod: Int(hc.startPeriod.components.seconds) * 1_000_000_000
+                test: hc.test,
+                interval: Int(hc.interval.components.seconds) * 1_000_000_000,
+                timeout: Int(hc.timeout.components.seconds) * 1_000_000_000,
+                retries: hc.retries,
+                startPeriod: Int(hc.startPeriod.components.seconds) * 1_000_000_000
             )
         }
 
         return CreateContainerRequest(
-            Image: config.image,
-            Env: env.isEmpty ? nil : env,
-            Cmd: config.command,
-            ExposedPorts: exposedPorts.isEmpty ? nil : exposedPorts,
-            HostConfig: HostConfig(
-                PortBindings: portBindings.isEmpty ? nil : portBindings,
-                Binds: binds.isEmpty ? nil : binds
+            image: config.image,
+            env: env.isEmpty ? nil : env,
+            cmd: config.command,
+            exposedPorts: exposedPorts.isEmpty ? nil : exposedPorts,
+            hostConfig: HostConfig(
+                portBindings: portBindings.isEmpty ? nil : portBindings,
+                binds: binds.isEmpty ? nil : binds
             ),
-            Healthcheck: healthcheck
+            healthcheck: healthcheck
         )
     }
 }

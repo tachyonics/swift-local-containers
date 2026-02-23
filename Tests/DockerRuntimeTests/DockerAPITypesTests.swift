@@ -8,11 +8,11 @@ struct DockerAPITypesTests {
     @Test("CreateContainerRequest encodes to expected JSON")
     func encodeCreateRequest() throws {
         let request = CreateContainerRequest(
-            Image: "nginx:latest",
-            Env: ["FOO=bar"],
-            ExposedPorts: ["80/tcp": EmptyObject()],
-            HostConfig: HostConfig(
-                PortBindings: ["80/tcp": [PortBinding(HostIp: "0.0.0.0", HostPort: "8080")]]
+            image: "nginx:latest",
+            env: ["FOO=bar"],
+            exposedPorts: ["80/tcp": EmptyObject()],
+            hostConfig: HostConfig(
+                portBindings: ["80/tcp": [PortBinding(hostIp: "0.0.0.0", hostPort: "8080")]]
             )
         )
 
@@ -32,8 +32,8 @@ struct DockerAPITypesTests {
             from: Data(json.utf8)
         )
 
-        #expect(response.Id == "abc123def456")
-        #expect(response.Warnings?.isEmpty == true)
+        #expect(response.id == "abc123def456")
+        #expect(response.warnings?.isEmpty == true)
     }
 
     @Test("InspectContainerResponse decodes port mappings")
@@ -59,26 +59,26 @@ struct DockerAPITypesTests {
             from: Data(json.utf8)
         )
 
-        #expect(response.Id == "abc123")
-        #expect(response.State.Running == true)
-        #expect(response.NetworkSettings.Ports?["80/tcp"]??.count == 1)
-        #expect(response.NetworkSettings.Ports?["80/tcp"]??[0].HostPort == "32768")
+        #expect(response.id == "abc123")
+        #expect(response.state.running == true)
+        #expect(response.networkSettings.ports?["80/tcp"]??.count == 1)
+        #expect(response.networkSettings.ports?["80/tcp"]??[0].hostPort == "32768")
     }
 
     @Test("DockerPortResolver resolves ports from inspect response")
     func portResolution() {
         let networkSettings = InspectContainerResponse.NetworkSettings(
-            Ports: [
+            ports: [
                 "8080/tcp": [
                     InspectContainerResponse.NetworkSettings.PortMapping(
-                        HostIp: "0.0.0.0",
-                        HostPort: "32768"
+                        hostIp: "0.0.0.0",
+                        hostPort: "32768"
                     )
                 ],
                 "53/udp": [
                     InspectContainerResponse.NetworkSettings.PortMapping(
-                        HostIp: "0.0.0.0",
-                        HostPort: "32769"
+                        hostIp: "0.0.0.0",
+                        hostPort: "32769"
                     )
                 ],
                 "9090/tcp": nil,
@@ -100,30 +100,22 @@ struct DockerAPITypesTests {
 }
 
 // Minimal AnyCodable for JSON round-trip verification
-private struct AnyCodable: Codable {
-    let value: Any
-
-    var stringValue: String? { value as? String }
+private struct AnyCodable: Codable, Sendable {
+    let stringValue: String?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let string = try? container.decode(String.self) {
-            value = string
-        } else if let int = try? container.decode(Int.self) {
-            value = int
-        } else if let bool = try? container.decode(Bool.self) {
-            value = bool
+            stringValue = string
         } else {
-            value = "unknown"
+            stringValue = nil
         }
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        if let string = value as? String {
+        if let string = stringValue {
             try container.encode(string)
-        } else if let int = value as? Int {
-            try container.encode(int)
         }
     }
 }
