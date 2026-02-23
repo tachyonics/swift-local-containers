@@ -135,8 +135,14 @@ package enum WaitStrategyExecutor {
 
     // MARK: - TCP Port Check
 
+    #if canImport(Glibc) || canImport(Musl)
+    private static let sockStream = Int32(SOCK_STREAM.rawValue)
+    #else
+    private static let sockStream = SOCK_STREAM
+    #endif
+
     private static func checkTCPPort(host: String, port: UInt16) -> Bool {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        let fd = socket(AF_INET, sockStream, 0)
         guard fd >= 0 else { return false }
         defer { close(fd) }
 
