@@ -1,5 +1,5 @@
 {
-  "originHash" : "8a842a23040b58f3cdc3ee07c56be7549a1052643313b802de9d987da56b98b8",
+  "originHash" : "f6bb3bae963f332644fe905b89ebc37ed485818b9ee8adc4f2090003f5cc10ee",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -26,6 +26,15 @@
       "state" : {
         "revision" : "5770e231585cb68388a6ae37ce36c4d8dbd46d90",
         "version" : "1.27.2"
+      }
+    },
+    {
+      "identity" : "smockable",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tachyonics/smockable.git",
+      "state" : {
+        "revision" : "fe2e5badc091c31d66e0501b3f661556ccb2be36",
+        "version" : "1.0.0-alpha.1"
       }
     },
     {
@@ -224,6 +233,15 @@
       "state" : {
         "revision" : "89888196dd79c61c50bca9a103d8114f32e1e598",
         "version" : "2.10.1"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
       }
     },
     {
