@@ -110,7 +110,8 @@ struct PullImageTests {
     func nonSuccessStatus() async {
         let body = "{\"status\": \"Pulling...\"}\n"
         let (client, mock) = makeClient(
-            returning: makeResponse(status: .internalServerError, body: body))
+            returning: makeResponse(status: .internalServerError, body: body)
+        )
 
         await #expect {
             try await client.pullImage("nginx:latest")
@@ -151,7 +152,8 @@ struct ErrorHandlingTests {
     func dockerJsonError() async {
         let body = "{\"message\": \"container is paused\"}"
         let (client, mock) = makeClient(
-            returning: makeResponse(status: .internalServerError, body: body))
+            returning: makeResponse(status: .internalServerError, body: body)
+        )
 
         await #expect {
             try await client.removeContainer(id: "abc123")
@@ -175,7 +177,8 @@ struct ErrorHandlingTests {
     func plainTextError() async {
         let body = "something went wrong"
         let (client, mock) = makeClient(
-            returning: makeResponse(status: .internalServerError, body: body))
+            returning: makeResponse(status: .internalServerError, body: body)
+        )
 
         await #expect {
             try await client.startContainer(id: "abc123")
