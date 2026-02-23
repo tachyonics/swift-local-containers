@@ -17,6 +17,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
+        .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
     ],
     targets: [
         // MARK: - Core
@@ -80,7 +81,10 @@ let package = Package(
 
         .testTarget(
             name: "DockerRuntimeTests",
-            dependencies: ["DockerRuntime"]
+            dependencies: [
+                "DockerRuntime",
+                .product(name: "Smockable", package: "smockable"),
+            ]
         ),
 
         .testTarget(

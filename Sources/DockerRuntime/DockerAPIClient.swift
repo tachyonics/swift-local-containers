@@ -6,38 +6,39 @@ import NIOCore
 import NIOFoundationCompat
 
 /// HTTP client for the Docker Engine API over a Unix domain socket.
-public struct DockerAPIClient: Sendable {
+package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     private let socketPath: String
     private let logger: Logger
+    private let executor: Executor
 
-    private static let apiVersion = "v1.47"
-    private static let maxResponseSize = 10 * 1024 * 1024  // 10 MB
+    private static var apiVersion: String { "v1.47" }
+    private static var maxResponseSize: Int { 10 * 1024 * 1024 }  // 10 MB
 
-    /// Creates a client connecting to the Docker daemon at the given Unix socket.
-    ///
-    /// - Parameter socketPath: Path to the Docker socket. Defaults to `/var/run/docker.sock`.
-    public init(
+    init(
         socketPath: String = "/var/run/docker.sock",
-        logger: Logger = Logger(label: "DockerAPIClient")
+        logger: Logger = Logger(label: "DockerAPIClient"),
+        executor: Executor
     ) {
         self.socketPath = socketPath
         self.logger = logger
+        self.executor = executor
     }
 
     /// Pull an image by reference.
-    public func pullImage(_ reference: String) async throws {
+    package func pullImage(_ reference: String) async throws {
         logger.info("Pulling image", metadata: ["image": "\(reference)"])
 
-        let (image, tag) = parseImageReference(reference)
+        let (image, tag) = Self.parseImageReference(reference)
         let url = try apiURL("/images/create", query: [("fromImage", image), ("tag", tag)])
 
         var request = HTTPClientRequest(url: url)
         request.method = .POST
         request.headers.add(name: "Host", value: "localhost")
 
-        let response = try await HTTPClient.shared.execute(
+        let response = try await executor.execute(
             request,
-            timeout: .seconds(300)
+            timeout: .seconds(300),
+            logger: nil
         )
 
         // Pull returns an NDJSON stream — consume it line by line checking for errors
@@ -73,7 +74,7 @@ public struct DockerAPIClient: Sendable {
     }
 
     /// Create a container from the given request body.
-    public func createContainer(
+    package func createContainer(
         _ request: CreateContainerRequest,
         name: String? = nil
     ) async throws -> CreateContainerResponse {
@@ -98,7 +99,7 @@ public struct DockerAPIClient: Sendable {
     }
 
     /// Start a created container.
-    public func startContainer(id: String) async throws {
+    package func startContainer(id: String) async throws {
         logger.info("Starting container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)/start")
@@ -111,7 +112,7 @@ public struct DockerAPIClient: Sendable {
     }
 
     /// Inspect a running container.
-    public func inspectContainer(id: String) async throws -> InspectContainerResponse {
+    package func inspectContainer(id: String) async throws -> InspectContainerResponse {
         logger.info("Inspecting container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)/json")
@@ -124,7 +125,7 @@ public struct DockerAPIClient: Sendable {
     }
 
     /// Stop a running container.
-    public func stopContainer(id: String, timeout: Int = 10) async throws {
+    package func stopContainer(id: String, timeout: Int = 10) async throws {
         logger.info("Stopping container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)/stop", query: [("t", String(timeout))])
@@ -137,7 +138,7 @@ public struct DockerAPIClient: Sendable {
     }
 
     /// Remove a container.
-    public func removeContainer(id: String, force: Bool = false) async throws {
+    package func removeContainer(id: String, force: Bool = false) async throws {
         logger.info("Removing container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)", query: [("force", String(force))])
@@ -185,7 +186,7 @@ public struct DockerAPIClient: Sendable {
         acceptableStatuses: Set<UInt> = [],
         timeout: TimeAmount = .seconds(30)
     ) async throws -> ByteBuffer {
-        let response = try await HTTPClient.shared.execute(request, timeout: timeout)
+        let response = try await executor.execute(request, timeout: timeout, logger: nil)
 
         var body = try await response.body.collect(upTo: Self.maxResponseSize)
 
@@ -218,10 +219,7 @@ public struct DockerAPIClient: Sendable {
 
     /// Attempts to extract an error message from the Docker API's JSON error response.
     private func extractErrorMessage(from body: inout ByteBuffer) -> String? {
-        struct DockerError: Codable {
-            var message: String
-        }
-        return (try? JSONDecoder().decode(DockerError.self, from: body))?.message
+        (try? JSONDecoder().decode(DockerErrorResponse.self, from: body))?.message
     }
 
     /// Splits an image reference into (image, tag).
@@ -231,7 +229,7 @@ public struct DockerAPIClient: Sendable {
     /// - `"nginx:1.25"` → `("nginx", "1.25")`
     /// - `"localstack/localstack:3.0"` → `("localstack/localstack", "3.0")`
     /// - `"registry:5000/myimage"` → `("registry:5000/myimage", "latest")`
-    private func parseImageReference(_ reference: String) -> (image: String, tag: String) {
+    static func parseImageReference(_ reference: String) -> (image: String, tag: String) {
         guard let colonIndex = reference.lastIndex(of: ":") else {
             return (reference, "latest")
         }
@@ -246,4 +244,25 @@ public struct DockerAPIClient: Sendable {
         let tag = String(afterColon)
         return (image, tag)
     }
+}
+
+extension GenericDockerAPIClient where Executor == HTTPClient {
+    /// Creates a client connecting to the Docker daemon at the given Unix socket.
+    ///
+    /// - Parameter socketPath: Path to the Docker socket. Defaults to `/var/run/docker.sock`.
+    package init(
+        socketPath: String = "/var/run/docker.sock",
+        logger: Logger = Logger(label: "DockerAPIClient")
+    ) {
+        self.socketPath = socketPath
+        self.logger = logger
+        self.executor = .shared
+    }
+}
+
+/// Default `DockerAPIClient` backed by `HTTPClient`.
+package typealias DockerAPIClient = GenericDockerAPIClient<HTTPClient>
+
+private struct DockerErrorResponse: Codable {
+    var message: String
 }
