@@ -47,4 +47,12 @@ public struct PlatformRuntime: ContainerRuntime {
     public func removeContainer(_ container: RunningContainer) async throws {
         try await underlying.removeContainer(container)
     }
+
+    public func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+        try await underlying.inspectContainer(container)
+    }
+
+    public func containerLogs(_ container: RunningContainer) async throws -> String {
+        try await underlying.containerLogs(container)
+    }
 }

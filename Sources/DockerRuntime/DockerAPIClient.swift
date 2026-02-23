@@ -137,6 +137,26 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
         _ = try await executeRequest(request, acceptableStatuses: [304])
     }
 
+    /// Fetch logs from a container.
+    ///
+    /// Docker returns a multiplexed stream when TTY is disabled — each frame has
+    /// an 8-byte header (`[stream_type, 0, 0, 0, size_be32]`) followed by payload bytes.
+    /// When TTY is enabled, the response is plain text with no framing.
+    package func containerLogs(id: String) async throws -> String {
+        logger.info("Fetching container logs", metadata: ["id": "\(id)"])
+
+        let url = try apiURL(
+            "/containers/\(id)/logs",
+            query: [("stdout", "1"), ("stderr", "1")]
+        )
+        var request = HTTPClientRequest(url: url)
+        request.method = .GET
+        request.headers.add(name: "Host", value: "localhost")
+
+        let body = try await executeRequest(request)
+        return Self.demultiplexDockerLogs(body)
+    }
+
     /// Remove a container.
     package func removeContainer(id: String, force: Bool = false) async throws {
         logger.info("Removing container", metadata: ["id": "\(id)"])
@@ -229,6 +249,60 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     /// - `"nginx:1.25"` → `("nginx", "1.25")`
     /// - `"localstack/localstack:3.0"` → `("localstack/localstack", "3.0")`
     /// - `"registry:5000/myimage"` → `("registry:5000/myimage", "latest")`
+    /// Demultiplexes Docker log output.
+    ///
+    /// When TTY is disabled, Docker prefixes each frame with an 8-byte header:
+    /// `[stream_type(1), padding(3), size_big_endian(4)]` followed by `size` payload bytes.
+    /// When TTY is enabled the response is plain text with no framing.
+    ///
+    /// This method detects the format and returns a plain UTF-8 string.
+    static func demultiplexDockerLogs(_ buffer: ByteBuffer) -> String {
+        var buf = buffer
+        guard buf.readableBytes >= 8 else {
+            return String(buffer: buf)
+        }
+
+        // Peek at the first byte — Docker stream types are 0 (stdin), 1 (stdout), 2 (stderr).
+        // If the first byte isn't one of these, treat as plain text (TTY mode).
+        guard let firstByte = buf.getInteger(at: buf.readerIndex, as: UInt8.self),
+            firstByte <= 2
+        else {
+            return String(buffer: buf)
+        }
+
+        var output = ""
+        while buf.readableBytes >= 8 {
+            // Read stream type (1 byte) + 3 padding bytes
+            guard let header = buf.readInteger(as: UInt32.self) else { break }
+            let streamType = UInt8(header >> 24)
+            // Validate stream type
+            guard streamType <= 2 else {
+                // Not a valid multiplexed stream, treat remainder as plain text
+                buf.moveReaderIndex(to: buf.readerIndex - 4)
+                output += String(buffer: buf)
+                return output
+            }
+
+            // Read frame size (4 bytes, big endian)
+            guard let frameSize = buf.readInteger(as: UInt32.self) else { break }
+            let size = Int(frameSize)
+
+            guard size > 0, buf.readableBytes >= size else { break }
+            if let payload = buf.readString(length: size) {
+                output += payload
+            } else {
+                buf.moveReaderIndex(forwardBy: size)
+            }
+        }
+
+        // Append any trailing bytes
+        if buf.readableBytes > 0 {
+            output += String(buffer: buf)
+        }
+
+        return output
+    }
+
     static func parseImageReference(_ reference: String) -> (image: String, tag: String) {
         guard let colonIndex = reference.lastIndex(of: ":") else {
             return (reference, "latest")

@@ -8,6 +8,8 @@ private final class StubContainerRuntime: ContainerRuntime, @unchecked Sendable 
     var startedConfigs: [ContainerConfiguration] = []
     var stoppedIDs: [String] = []
     var removedIDs: [String] = []
+    var inspectedIDs: [String] = []
+    var logRequestedIDs: [String] = []
 
     let stubbedContainer: RunningContainer
 
@@ -37,6 +39,16 @@ private final class StubContainerRuntime: ContainerRuntime, @unchecked Sendable 
 
     func removeContainer(_ container: RunningContainer) async throws {
         removedIDs.append(container.id)
+    }
+
+    func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+        inspectedIDs.append(container.id)
+        return ContainerInspection(isRunning: true, healthStatus: .healthy)
+    }
+
+    func containerLogs(_ container: RunningContainer) async throws -> String {
+        logRequestedIDs.append(container.id)
+        return ""
     }
 }
 
@@ -87,6 +99,31 @@ struct PlatformRuntimeTests {
         #expect(stub.removedIDs == ["c-2"])
     }
 
+    @Test("inspectContainer delegates to underlying runtime")
+    func inspectDelegation() async throws {
+        let stub = StubContainerRuntime()
+        let runtime = PlatformRuntime(runtime: stub)
+        let container = RunningContainer(id: "c-3", name: "test", image: "test")
+
+        let inspection = try await runtime.inspectContainer(container)
+
+        #expect(stub.inspectedIDs == ["c-3"])
+        #expect(inspection.isRunning == true)
+        #expect(inspection.healthStatus == .healthy)
+    }
+
+    @Test("containerLogs delegates to underlying runtime")
+    func logsDelegation() async throws {
+        let stub = StubContainerRuntime()
+        let runtime = PlatformRuntime(runtime: stub)
+        let container = RunningContainer(id: "c-4", name: "test", image: "test")
+
+        let logs = try await runtime.containerLogs(container)
+
+        #expect(stub.logRequestedIDs == ["c-4"])
+        #expect(logs == "")
+    }
+
     @Test("Errors from underlying runtime propagate")
     func errorPropagation() async {
         let stub = StubContainerRuntime()
@@ -116,6 +153,14 @@ private struct ThrowingRuntime: ContainerRuntime {
     }
 
     func removeContainer(_ container: RunningContainer) async throws {
+        throw ContainerError.runtimeError("stubbed error")
+    }
+
+    func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+        throw ContainerError.runtimeError("stubbed error")
+    }
+
+    func containerLogs(_ container: RunningContainer) async throws -> String {
         throw ContainerError.runtimeError("stubbed error")
     }
 }

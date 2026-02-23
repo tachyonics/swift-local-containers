@@ -1,4 +1,5 @@
 import AsyncHTTPClient
+import Foundation
 import LocalContainers
 import Logging
 import NIOCore
@@ -290,5 +291,125 @@ struct ErrorHandlingTests {
             timeout: .any,
             logger: .any
         )
+    }
+}
+
+// MARK: - containerLogs
+
+@Suite("DockerAPIClient.containerLogs")
+struct ContainerLogsTests {
+    @Test("Successful log fetch with multiplexed format demultiplexes correctly")
+    func multiplexedLogs() async throws {
+        // Build a multiplexed Docker log stream:
+        // stdout frame: "Hello from stdout\n"
+        // stderr frame: "Error line\n"
+        let stdoutPayload = Array("Hello from stdout\n".utf8)
+        let stderrPayload = Array("Error line\n".utf8)
+
+        var data = Data()
+        // stdout header: stream_type=1, padding=0,0,0, size big-endian
+        data.append(contentsOf: [1, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(stdoutPayload.count).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: stdoutPayload)
+        // stderr header: stream_type=2, padding=0,0,0, size big-endian
+        data.append(contentsOf: [2, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(stderrPayload.count).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: stderrPayload)
+
+        let body = String(data: data, encoding: .utf8) ?? ""
+        let (client, mock) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        let logs = try await client.containerLogs(id: "abc123")
+
+        #expect(logs.contains("Hello from stdout"))
+        #expect(logs.contains("Error line"))
+
+        verify(mock).execute(
+            .matching { $0.method == .GET && $0.url.contains("/containers/abc123/logs") },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("Successful log fetch with plain text (TTY mode)")
+    func plainTextLogs() async throws {
+        let body = "plain log line 1\nplain log line 2\n"
+        let (client, mock) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        let logs = try await client.containerLogs(id: "abc123")
+
+        #expect(logs == "plain log line 1\nplain log line 2\n")
+
+        verify(mock).execute(
+            .matching { $0.method == .GET && $0.url.contains("/containers/abc123/logs") },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("404 returns containerNotFound")
+    func containerNotFound() async {
+        let body = "{\"message\": \"No such container\"}"
+        let (client, mock) = makeClient(returning: makeResponse(status: .notFound, body: body))
+
+        await #expect {
+            try await client.containerLogs(id: "missing123")
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .containerNotFound(let id) = containerError
+            else {
+                return false
+            }
+            return id == "missing123"
+        }
+
+        verify(mock).execute(
+            .matching { $0.method == .GET && $0.url.contains("/containers/missing123/logs") },
+            timeout: .any,
+            logger: .any
+        )
+    }
+}
+
+// MARK: - demultiplexDockerLogs
+
+@Suite("DockerAPIClient.demultiplexDockerLogs")
+struct DemultiplexDockerLogsTests {
+    @Test("Demultiplexes multiple frames correctly")
+    func multipleFrames() {
+        let frame1Payload = Array("stdout data\n".utf8)
+        let frame2Payload = Array("stderr data\n".utf8)
+
+        var data = Data()
+        // Frame 1: stdout (type 1)
+        data.append(contentsOf: [1, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(frame1Payload.count).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: frame1Payload)
+        // Frame 2: stderr (type 2)
+        data.append(contentsOf: [2, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(frame2Payload.count).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: frame2Payload)
+
+        let buffer = ByteBuffer(data: data)
+        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+
+        #expect(result == "stdout data\nstderr data\n")
+    }
+
+    @Test("Plain text passes through unchanged")
+    func plainText() {
+        let text = "Hello, this is plain text log output\n"
+        let buffer = ByteBuffer(string: text)
+        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+
+        #expect(result == text)
+    }
+
+    @Test("Empty buffer returns empty string")
+    func emptyBuffer() {
+        let buffer = ByteBuffer()
+        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+
+        #expect(result == "")
     }
 }

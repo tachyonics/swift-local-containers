@@ -70,6 +70,9 @@ public struct ContainerConfiguration: Sendable {
     /// Health check configuration.
     public let healthCheck: HealthCheckConfig?
 
+    /// Maximum time to wait for the container to become ready.
+    public let waitTimeout: Duration
+
     public init(
         image: String,
         ports: [PortMapping] = [],
@@ -78,7 +81,8 @@ public struct ContainerConfiguration: Sendable {
         name: String? = nil,
         command: [String]? = nil,
         waitStrategy: WaitStrategy = .port,
-        healthCheck: HealthCheckConfig? = nil
+        healthCheck: HealthCheckConfig? = nil,
+        waitTimeout: Duration = .seconds(60)
     ) {
         self.image = image
         self.ports = ports
@@ -88,5 +92,6 @@ public struct ContainerConfiguration: Sendable {
         self.command = command
         self.waitStrategy = waitStrategy
         self.healthCheck = healthCheck
+        self.waitTimeout = waitTimeout
     }
 }

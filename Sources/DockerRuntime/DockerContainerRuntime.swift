@@ -54,6 +54,21 @@ public struct DockerContainerRuntime: ContainerRuntime {
         try await client.removeContainer(id: container.id, force: true)
     }
 
+    public func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+        let response = try await client.inspectContainer(id: container.id)
+        let healthStatus: HealthStatus = switch response.state.health?.status {
+        case "healthy": .healthy
+        case "unhealthy": .unhealthy
+        case "starting": .starting
+        default: .notConfigured
+        }
+        return ContainerInspection(isRunning: response.state.running, healthStatus: healthStatus)
+    }
+
+    public func containerLogs(_ container: RunningContainer) async throws -> String {
+        try await client.containerLogs(id: container.id)
+    }
+
     // MARK: - Internal
 
     func buildCreateRequest(
