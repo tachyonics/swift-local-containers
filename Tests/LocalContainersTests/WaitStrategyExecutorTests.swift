@@ -27,13 +27,13 @@ private final class MockContainerRuntime: ContainerRuntime, @unchecked Sendable 
     func stopContainer(_ container: RunningContainer) async throws {}
     func removeContainer(_ container: RunningContainer) async throws {}
 
-    func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+    func inspect(container: RunningContainer) async throws -> ContainerInspection {
         let index = min(inspectCallCount, inspectionResults.count - 1)
         inspectCallCount += 1
         return inspectionResults[index]
     }
 
-    func containerLogs(_ container: RunningContainer) async throws -> String {
+    func logs(for container: RunningContainer) async throws -> String {
         let index = min(logsCallCount, logResults.count - 1)
         logsCallCount += 1
         return logResults[index]

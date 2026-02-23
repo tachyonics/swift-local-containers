@@ -72,7 +72,7 @@ package enum WaitStrategyExecutor {
             timeout: timeout,
             pollInterval: .seconds(1)
         ) {
-            let inspection = try await runtime.inspectContainer(container)
+            let inspection = try await runtime.inspect(container: container)
             switch inspection.healthStatus {
             case .healthy:
                 return true
@@ -99,7 +99,7 @@ package enum WaitStrategyExecutor {
             timeout: timeout,
             pollInterval: .seconds(1)
         ) {
-            let logs = try await runtime.containerLogs(container)
+            let logs = try await runtime.logs(for: container)
             return logs.contains(message)
         }
     }

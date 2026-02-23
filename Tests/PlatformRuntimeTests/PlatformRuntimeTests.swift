@@ -41,12 +41,12 @@ private final class StubContainerRuntime: ContainerRuntime, @unchecked Sendable 
         removedIDs.append(container.id)
     }
 
-    func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+    func inspect(container: RunningContainer) async throws -> ContainerInspection {
         inspectedIDs.append(container.id)
         return ContainerInspection(isRunning: true, healthStatus: .healthy)
     }
 
-    func containerLogs(_ container: RunningContainer) async throws -> String {
+    func logs(for container: RunningContainer) async throws -> String {
         logRequestedIDs.append(container.id)
         return ""
     }
@@ -105,7 +105,7 @@ struct PlatformRuntimeTests {
         let runtime = PlatformRuntime(runtime: stub)
         let container = RunningContainer(id: "c-3", name: "test", image: "test")
 
-        let inspection = try await runtime.inspectContainer(container)
+        let inspection = try await runtime.inspect(container: container)
 
         #expect(stub.inspectedIDs == ["c-3"])
         #expect(inspection.isRunning == true)
@@ -118,7 +118,7 @@ struct PlatformRuntimeTests {
         let runtime = PlatformRuntime(runtime: stub)
         let container = RunningContainer(id: "c-4", name: "test", image: "test")
 
-        let logs = try await runtime.containerLogs(container)
+        let logs = try await runtime.logs(for: container)
 
         #expect(stub.logRequestedIDs == ["c-4"])
         #expect(logs == "")
@@ -156,11 +156,11 @@ private struct ThrowingRuntime: ContainerRuntime {
         throw ContainerError.runtimeError("stubbed error")
     }
 
-    func inspectContainer(_ container: RunningContainer) async throws -> ContainerInspection {
+    func inspect(container: RunningContainer) async throws -> ContainerInspection {
         throw ContainerError.runtimeError("stubbed error")
     }
 
-    func containerLogs(_ container: RunningContainer) async throws -> String {
+    func logs(for container: RunningContainer) async throws -> String {
         throw ContainerError.runtimeError("stubbed error")
     }
 }
