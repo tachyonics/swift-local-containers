@@ -245,18 +245,25 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     // MARK: - resolveHost
 
-    @Test("resolveHost returns 127.0.0.1 when not in Docker")
-    func resolveHostDefault() {
-        // This test runs on the host, so /.dockerenv should not exist
+    @Test("resolveHost uses gateway when inside Docker, 127.0.0.1 otherwise")
+    func resolveHostWithGateway() {
         let host = DockerContainerRuntime.resolveHost(gateway: "172.17.0.1")
-        // When not running inside a container, always returns 127.0.0.1
-        // regardless of gateway value
-        #expect(host == "127.0.0.1")
+        let inDocker = FileManager.default.fileExists(atPath: "/.dockerenv")
+        if inDocker {
+            #expect(host == "172.17.0.1")
+        } else {
+            #expect(host == "127.0.0.1")
+        }
     }
 
     @Test("resolveHost returns 127.0.0.1 when gateway is nil")
     func resolveHostNilGateway() {
         #expect(DockerContainerRuntime.resolveHost(gateway: nil) == "127.0.0.1")
+    }
+
+    @Test("resolveHost returns 127.0.0.1 when gateway is empty")
+    func resolveHostEmptyGateway() {
+        #expect(DockerContainerRuntime.resolveHost(gateway: "") == "127.0.0.1")
     }
 
     @Test("Full config round-trips through JSON encoding")
