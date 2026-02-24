@@ -29,7 +29,7 @@
 
 ## Integration Tests
 
-- [ ] Add Docker integration test that exercises wait strategies
+- [x] Add Docker integration test that exercises wait strategies
 - [ ] Add Docker integration test that exercises setup steps
 - [ ] Replace mock-based LocalStack integration test with a real container test
 - [ ] Add ContainerizationRuntime integration test (macOS 26+)
