@@ -3,7 +3,7 @@ import Testing
 @testable import LocalContainers
 @testable import PlatformRuntime
 
-private final class StubContainerRuntime: ContainerRuntime, @unchecked Sendable {
+private actor StubContainerRuntime: ContainerRuntime {
     var pulledImages: [String] = []
     var startedConfigs: [ContainerConfiguration] = []
     var stoppedIDs: [String] = []
@@ -61,7 +61,7 @@ struct PlatformRuntimeTests {
 
         try await runtime.pullImage("nginx:latest")
 
-        #expect(stub.pulledImages == ["nginx:latest"])
+        #expect(await stub.pulledImages == ["nginx:latest"])
     }
 
     @Test("startContainer delegates and returns the result")
@@ -72,8 +72,9 @@ struct PlatformRuntimeTests {
         let config = ContainerConfiguration(image: "redis:7")
         let container = try await runtime.startContainer(from: config)
 
-        #expect(stub.startedConfigs.count == 1)
-        #expect(stub.startedConfigs[0].image == "redis:7")
+        let startedConfigs = await stub.startedConfigs
+        #expect(startedConfigs.count == 1)
+        #expect(startedConfigs[0].image == "redis:7")
         #expect(container.id == "stub-1")
     }
 
@@ -85,7 +86,7 @@ struct PlatformRuntimeTests {
 
         try await runtime.stopContainer(container)
 
-        #expect(stub.stoppedIDs == ["c-1"])
+        #expect(await stub.stoppedIDs == ["c-1"])
     }
 
     @Test("removeContainer delegates to underlying runtime")
@@ -96,7 +97,7 @@ struct PlatformRuntimeTests {
 
         try await runtime.removeContainer(container)
 
-        #expect(stub.removedIDs == ["c-2"])
+        #expect(await stub.removedIDs == ["c-2"])
     }
 
     @Test("inspectContainer delegates to underlying runtime")
@@ -107,7 +108,7 @@ struct PlatformRuntimeTests {
 
         let inspection = try await runtime.inspect(container: container)
 
-        #expect(stub.inspectedIDs == ["c-3"])
+        #expect(await stub.inspectedIDs == ["c-3"])
         #expect(inspection.isRunning == true)
         #expect(inspection.healthStatus == .healthy)
     }
@@ -120,7 +121,7 @@ struct PlatformRuntimeTests {
 
         let logs = try await runtime.logs(for: container)
 
-        #expect(stub.logRequestedIDs == ["c-4"])
+        #expect(await stub.logRequestedIDs == ["c-4"])
         #expect(logs == "")
     }
 

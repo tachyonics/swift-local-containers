@@ -12,7 +12,7 @@ import Musl
 
 // MARK: - Mock Runtime
 
-private final class MockContainerRuntime: ContainerRuntime, @unchecked Sendable {
+private actor MockContainerRuntime: ContainerRuntime {
     var inspectionResults: [ContainerInspection] = []
     var logResults: [String] = []
     private var inspectCallCount = 0
@@ -37,6 +37,14 @@ private final class MockContainerRuntime: ContainerRuntime, @unchecked Sendable 
         let index = min(logsCallCount, logResults.count - 1)
         logsCallCount += 1
         return logResults[index]
+    }
+
+    func setInspectionResults(_ results: [ContainerInspection]) {
+        inspectionResults = results
+    }
+
+    func setLogResults(_ results: [String]) {
+        logResults = results
     }
 }
 
@@ -192,10 +200,10 @@ struct HealthCheckStrategyTests {
     @Test("Health check succeeds after starting then healthy")
     func healthCheckSucceeds() async throws {
         let runtime = MockContainerRuntime()
-        runtime.inspectionResults = [
+        await runtime.setInspectionResults([
             ContainerInspection(isRunning: true, healthStatus: .starting),
             ContainerInspection(isRunning: true, healthStatus: .healthy),
-        ]
+        ])
 
         let container = RunningContainer(id: "test-3", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -214,9 +222,9 @@ struct HealthCheckStrategyTests {
     @Test("Health check times out when always starting")
     func healthCheckTimesOut() async {
         let runtime = MockContainerRuntime()
-        runtime.inspectionResults = [
-            ContainerInspection(isRunning: true, healthStatus: .starting)
-        ]
+        await runtime.setInspectionResults([
+            ContainerInspection(isRunning: true, healthStatus: .starting),
+        ])
 
         let container = RunningContainer(id: "test-4", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -244,9 +252,9 @@ struct HealthCheckStrategyTests {
     @Test("Health check fails on unhealthy")
     func healthCheckFailsOnUnhealthy() async {
         let runtime = MockContainerRuntime()
-        runtime.inspectionResults = [
-            ContainerInspection(isRunning: true, healthStatus: .unhealthy)
-        ]
+        await runtime.setInspectionResults([
+            ContainerInspection(isRunning: true, healthStatus: .unhealthy),
+        ])
 
         let container = RunningContainer(id: "test-5", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -279,9 +287,9 @@ struct LogStrategyTests {
     @Test("Log message found in output")
     func logMessageFound() async throws {
         let runtime = MockContainerRuntime()
-        runtime.logResults = [
-            "Starting up...\nReady to accept connections\n"
-        ]
+        await runtime.setLogResults([
+            "Starting up...\nReady to accept connections\n",
+        ])
 
         let container = RunningContainer(id: "test-6", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -300,9 +308,9 @@ struct LogStrategyTests {
     @Test("Log times out when message not present")
     func logTimesOut() async {
         let runtime = MockContainerRuntime()
-        runtime.logResults = [
-            "Starting up...\n"
-        ]
+        await runtime.setLogResults([
+            "Starting up...\n",
+        ])
 
         let container = RunningContainer(id: "test-7", name: "test", image: "test:latest")
         let config = ContainerConfiguration(

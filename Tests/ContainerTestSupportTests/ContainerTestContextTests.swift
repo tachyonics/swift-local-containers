@@ -5,7 +5,7 @@ import Testing
 
 // MARK: - Stub Runtime
 
-private final class StubContainerRuntime: ContainerRuntime, @unchecked Sendable {
+private actor StubContainerRuntime: ContainerRuntime {
     var pullCalled = false
     var startCalled = false
 
@@ -51,8 +51,8 @@ struct SharedContainerManagerTests {
             runtime: runtime
         )
 
-        #expect(runtime.pullCalled)
-        #expect(runtime.startCalled)
+        #expect(await runtime.pullCalled)
+        #expect(await runtime.startCalled)
         #expect(container.id == "stub-1")
     }
 }
