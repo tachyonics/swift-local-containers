@@ -223,7 +223,7 @@ struct HealthCheckStrategyTests {
     func healthCheckTimesOut() async {
         let runtime = MockContainerRuntime()
         await runtime.setInspectionResults([
-            ContainerInspection(isRunning: true, healthStatus: .starting),
+            ContainerInspection(isRunning: true, healthStatus: .starting)
         ])
 
         let container = RunningContainer(id: "test-4", name: "test", image: "test:latest")
@@ -253,7 +253,7 @@ struct HealthCheckStrategyTests {
     func healthCheckFailsOnUnhealthy() async {
         let runtime = MockContainerRuntime()
         await runtime.setInspectionResults([
-            ContainerInspection(isRunning: true, healthStatus: .unhealthy),
+            ContainerInspection(isRunning: true, healthStatus: .unhealthy)
         ])
 
         let container = RunningContainer(id: "test-5", name: "test", image: "test:latest")
@@ -288,7 +288,7 @@ struct LogStrategyTests {
     func logMessageFound() async throws {
         let runtime = MockContainerRuntime()
         await runtime.setLogResults([
-            "Starting up...\nReady to accept connections\n",
+            "Starting up...\nReady to accept connections\n"
         ])
 
         let container = RunningContainer(id: "test-6", name: "test", image: "test:latest")
@@ -309,7 +309,7 @@ struct LogStrategyTests {
     func logTimesOut() async {
         let runtime = MockContainerRuntime()
         await runtime.setLogResults([
-            "Starting up...\n",
+            "Starting up...\n"
         ])
 
         let container = RunningContainer(id: "test-7", name: "test", image: "test:latest")
