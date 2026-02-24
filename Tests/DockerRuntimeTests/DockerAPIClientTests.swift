@@ -40,7 +40,7 @@ private func makeClient(
 
 // MARK: - parseImageReference
 
-@Suite("client.parseImageReference")
+@Suite("DockerAPIClient.parseImageReference")
 struct ParseImageReferenceTests {
     private let client = makeClient(returning: makeResponse(status: .ok, body: "")).client
 
