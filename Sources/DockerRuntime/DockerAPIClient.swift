@@ -290,8 +290,6 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
             guard size > 0, buf.readableBytes >= size else { break }
             if let payload = buf.readString(length: size) {
                 output += payload
-            } else {
-                buf.moveReaderIndex(forwardBy: size)
             }
         }
 

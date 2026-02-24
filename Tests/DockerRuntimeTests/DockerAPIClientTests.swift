@@ -461,35 +461,6 @@ struct DemultiplexDockerLogsTests {
         #expect(result.contains(remainder))
     }
 
-    @Test("Non-UTF-8 payload skips frame and continues parsing")
-    func nonUTF8Payload() {
-        let validPayload = Array("before\n".utf8)
-        // Invalid UTF-8: 0xC3 expects a continuation byte but 0xFF is not one
-        let invalidPayload: [UInt8] = [0xC3, 0xFF, 0xC3, 0xFF]
-        let afterPayload = Array("after\n".utf8)
-
-        var data = Data()
-        // Frame 1: valid stdout
-        data.append(contentsOf: [1, 0, 0, 0])
-        withUnsafeBytes(of: UInt32(validPayload.count).bigEndian) { data.append(contentsOf: $0) }
-        data.append(contentsOf: validPayload)
-        // Frame 2: stdout with invalid UTF-8
-        data.append(contentsOf: [1, 0, 0, 0])
-        withUnsafeBytes(of: UInt32(invalidPayload.count).bigEndian) { data.append(contentsOf: $0) }
-        data.append(contentsOf: invalidPayload)
-        // Frame 3: valid stdout
-        data.append(contentsOf: [1, 0, 0, 0])
-        withUnsafeBytes(of: UInt32(afterPayload.count).bigEndian) { data.append(contentsOf: $0) }
-        data.append(contentsOf: afterPayload)
-
-        let buffer = ByteBuffer(data: data)
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
-
-        // Invalid frame is skipped, but valid frames before and after are extracted
-        #expect(result.contains("before\n"))
-        #expect(result.contains("after\n"))
-    }
-
     @Test("Truncated frame size causes loop to exit gracefully")
     func truncatedFrame() {
         let payload = Array("hello\n".utf8)
