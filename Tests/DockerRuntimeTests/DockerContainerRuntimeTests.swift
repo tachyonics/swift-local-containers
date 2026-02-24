@@ -120,6 +120,152 @@ struct DockerContainerRuntimeBuildRequestTests {
         #expect(request.healthcheck?.startPeriod == 2_000_000_000)
     }
 
+    @Test("mapInspection maps healthy status")
+    func mapInspectionHealthy() {
+        let response = InspectContainerResponse(
+            id: "c1",
+            name: "test",
+            state: .init(
+                status: "running",
+                running: true,
+                health: .init(status: "healthy")
+            ),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.isRunning == true)
+        #expect(result.healthStatus == .healthy)
+    }
+
+    @Test("mapInspection maps unhealthy status")
+    func mapInspectionUnhealthy() {
+        let response = InspectContainerResponse(
+            id: "c2",
+            name: "test",
+            state: .init(
+                status: "running",
+                running: true,
+                health: .init(status: "unhealthy")
+            ),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.healthStatus == .unhealthy)
+    }
+
+    @Test("mapInspection maps starting status")
+    func mapInspectionStarting() {
+        let response = InspectContainerResponse(
+            id: "c3",
+            name: "test",
+            state: .init(
+                status: "running",
+                running: true,
+                health: .init(status: "starting")
+            ),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.healthStatus == .starting)
+    }
+
+    @Test("mapInspection defaults to notConfigured when no health check")
+    func mapInspectionNoHealth() {
+        let response = InspectContainerResponse(
+            id: "c4",
+            name: "test",
+            state: .init(status: "running", running: true, health: nil),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.healthStatus == .notConfigured)
+    }
+
+    @Test("mapInspection reflects running state")
+    func mapInspectionNotRunning() {
+        let response = InspectContainerResponse(
+            id: "c5",
+            name: "test",
+            state: .init(status: "exited", running: false, health: nil),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.isRunning == false)
+    }
+
+    // MARK: - extractGateway
+
+    @Test("extractGateway prefers top-level gateway when populated")
+    func extractGatewayTopLevel() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: "10.0.0.1",
+            networks: ["bridge": .init(gateway: "172.17.0.1")]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "10.0.0.1")
+    }
+
+    @Test("extractGateway falls back to Networks map when top-level is empty")
+    func extractGatewayFromNetworks() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: "",
+            networks: ["bridge": .init(gateway: "172.17.0.1")]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.17.0.1")
+    }
+
+    @Test("extractGateway falls back to Networks map when top-level is nil")
+    func extractGatewayFromNetworksNilTopLevel() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: nil,
+            networks: ["bridge": .init(gateway: "172.18.0.1")]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.18.0.1")
+    }
+
+    @Test("extractGateway returns nil when no gateway available")
+    func extractGatewayNone() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: "",
+            networks: [:]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == nil)
+    }
+
+    @Test("extractGateway skips networks with empty gateway")
+    func extractGatewaySkipsEmpty() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: nil,
+            networks: [
+                "none": .init(gateway: ""),
+                "bridge": .init(gateway: "172.17.0.1"),
+            ]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.17.0.1")
+    }
+
+    // MARK: - resolveHost
+
+    @Test("resolveHost uses gateway when inside Docker, 127.0.0.1 otherwise")
+    func resolveHostWithGateway() {
+        let host = DockerContainerRuntime.resolveHost(gateway: "172.17.0.1")
+        let inDocker = FileManager.default.fileExists(atPath: "/.dockerenv")
+        if inDocker {
+            #expect(host == "172.17.0.1")
+        } else {
+            #expect(host == "127.0.0.1")
+        }
+    }
+
+    @Test("resolveHost returns 127.0.0.1 when gateway is nil")
+    func resolveHostNilGateway() {
+        #expect(DockerContainerRuntime.resolveHost(gateway: nil) == "127.0.0.1")
+    }
+
+    @Test("resolveHost returns 127.0.0.1 when gateway is empty")
+    func resolveHostEmptyGateway() {
+        #expect(DockerContainerRuntime.resolveHost(gateway: "") == "127.0.0.1")
+    }
+
     @Test("Full config round-trips through JSON encoding")
     func fullConfigJsonRoundTrip() throws {
         let config = ContainerConfiguration(

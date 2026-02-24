@@ -152,9 +152,13 @@ public struct InspectContainerResponse: Codable, Sendable {
 
     public struct NetworkSettings: Codable, Sendable {
         public var ports: [String: [PortMapping]?]?
+        public var gateway: String?
+        public var networks: [String: NetworkInfo]?
 
         private enum CodingKeys: String, CodingKey {
             case ports = "Ports"
+            case gateway = "Gateway"
+            case networks = "Networks"
         }
 
         public struct PortMapping: Codable, Sendable {
@@ -164,6 +168,14 @@ public struct InspectContainerResponse: Codable, Sendable {
             private enum CodingKeys: String, CodingKey {
                 case hostIp = "HostIp"
                 case hostPort = "HostPort"
+            }
+        }
+
+        public struct NetworkInfo: Codable, Sendable {
+            public var gateway: String?
+
+            private enum CodingKeys: String, CodingKey {
+                case gateway = "Gateway"
             }
         }
     }

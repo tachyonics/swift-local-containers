@@ -53,4 +53,16 @@ public struct ContainerizationContainerRuntime: ContainerRuntime {
             "ContainerizationContainerRuntime.removeContainer not yet implemented"
         )
     }
+
+    public func inspect(container: RunningContainer) async throws -> ContainerInspection {
+        throw ContainerError.runtimeError(
+            "ContainerizationContainerRuntime.inspect not yet implemented"
+        )
+    }
+
+    public func logs(for container: RunningContainer) async throws -> String {
+        throw ContainerError.runtimeError(
+            "ContainerizationContainerRuntime.logs not yet implemented"
+        )
+    }
 }

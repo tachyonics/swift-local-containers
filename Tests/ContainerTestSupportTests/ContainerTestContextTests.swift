@@ -3,6 +3,62 @@ import Testing
 @testable import ContainerTestSupport
 @testable import LocalContainers
 
+// MARK: - Stub Runtime
+
+private actor StubContainerRuntime: ContainerRuntime {
+    var pullCalled = false
+    var startCalled = false
+
+    func pullImage(_ reference: String) async throws {
+        pullCalled = true
+    }
+
+    func startContainer(
+        from configuration: ContainerConfiguration
+    ) async throws -> RunningContainer {
+        startCalled = true
+        return RunningContainer(id: "stub-1", name: "stub", image: configuration.image)
+    }
+
+    func stopContainer(_ container: RunningContainer) async throws {}
+    func removeContainer(_ container: RunningContainer) async throws {}
+
+    func inspect(container: RunningContainer) async throws -> ContainerInspection {
+        ContainerInspection(isRunning: true, healthStatus: .healthy)
+    }
+
+    func logs(for container: RunningContainer) async throws -> String { "" }
+}
+
+// MARK: - SharedContainerManager Tests
+
+private enum SharedTestKey: ContainerKey {
+    static let spec = ContainerSpec(
+        ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .custom { _ in }
+        )
+    )
+}
+
+@Suite("SharedContainerManager")
+struct SharedContainerManagerTests {
+    @Test("container(for:runtime:) starts container and executes wait strategy")
+    func containerStartsWithWait() async throws {
+        let runtime = StubContainerRuntime()
+        let container = try await SharedContainerManager.shared.container(
+            for: SharedTestKey.self,
+            runtime: runtime
+        )
+
+        #expect(await runtime.pullCalled)
+        #expect(await runtime.startCalled)
+        #expect(container.id == "stub-1")
+    }
+}
+
+// MARK: - Container Keys
+
 private struct FakeDB: ContainerKey {
     static let spec = ContainerSpec(
         ContainerConfiguration(image: "postgres:16", ports: [PortMapping(containerPort: 5432)])

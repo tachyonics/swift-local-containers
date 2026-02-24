@@ -44,6 +44,13 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
                 try await runtime.pullImage(spec.configuration.image)
                 let container = try await runtime.startContainer(from: spec.configuration)
 
+                // Wait for container readiness
+                try await WaitStrategyExecutor.waitUntilReady(
+                    container: container,
+                    configuration: spec.configuration,
+                    runtime: runtime
+                )
+
                 // Run setup steps
                 for setup in spec.setups {
                     try await setup.setUp(container: container)

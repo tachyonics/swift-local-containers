@@ -15,4 +15,10 @@ public protocol ContainerRuntime: Sendable {
 
     /// Remove a stopped container and its associated resources.
     func removeContainer(_ container: RunningContainer) async throws
+
+    /// Inspect a running container and return its current state.
+    func inspect(container: RunningContainer) async throws -> ContainerInspection
+
+    /// Fetch the log output from a container.
+    func logs(for container: RunningContainer) async throws -> String
 }
