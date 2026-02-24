@@ -146,6 +146,11 @@ package enum WaitStrategyExecutor {
         guard fd >= 0 else { return false }
         defer { close(fd) }
 
+        // Set non-blocking so connect() returns immediately
+        let flags = fcntl(fd, F_GETFL)
+        guard flags >= 0 else { return false }
+        guard fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0 else { return false }
+
         var addr = sockaddr_in()
         addr.sin_family = sa_family_t(AF_INET)
         addr.sin_port = port.bigEndian
@@ -154,12 +159,29 @@ package enum WaitStrategyExecutor {
             return false
         }
 
-        let result = withUnsafePointer(to: &addr) { ptr in
+        let connectResult = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
                 connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
 
-        return result == 0
+        if connectResult == 0 {
+            return true
+        }
+
+        // EINPROGRESS means the connection is in progress — poll for completion
+        guard errno == EINPROGRESS else { return false }
+
+        var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+        // Wait up to 500ms for the connection to complete
+        let pollResult = poll(&pfd, 1, 500)
+        guard pollResult > 0 else { return false }
+
+        // Check if the connection actually succeeded via SO_ERROR
+        var socketError: Int32 = 0
+        var errorLen = socklen_t(MemoryLayout<Int32>.size)
+        getsockopt(fd, SOL_SOCKET, SO_ERROR, &socketError, &errorLen)
+
+        return socketError == 0
     }
 }
