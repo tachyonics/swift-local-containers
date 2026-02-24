@@ -28,7 +28,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     package func pullImage(_ reference: String) async throws {
         logger.info("Pulling image", metadata: ["image": "\(reference)"])
 
-        let (image, tag) = Self.parseImageReference(reference)
+        let (image, tag) = parseImageReference(reference)
         let url = try apiURL("/images/create", query: [("fromImage", image), ("tag", tag)])
 
         var request = HTTPClientRequest(url: url)
@@ -154,7 +154,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
         request.headers.add(name: "Host", value: "localhost")
 
         let body = try await executeRequest(request)
-        return Self.demultiplexDockerLogs(body)
+        return demultiplexDockerLogs(body)
     }
 
     /// Remove a container.
@@ -256,7 +256,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     /// When TTY is enabled the response is plain text with no framing.
     ///
     /// This method detects the format and returns a plain UTF-8 string.
-    static func demultiplexDockerLogs(_ buffer: ByteBuffer) -> String {
+    func demultiplexDockerLogs(_ buffer: ByteBuffer) -> String {
         var buf = buffer
         guard buf.readableBytes >= 8 else {
             return String(buffer: buf)
@@ -301,7 +301,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
         return output
     }
 
-    static func parseImageReference(_ reference: String) -> (image: String, tag: String) {
+    func parseImageReference(_ reference: String) -> (image: String, tag: String) {
         guard let colonIndex = reference.lastIndex(of: ":") else {
             return (reference, "latest")
         }
