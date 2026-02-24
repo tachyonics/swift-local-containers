@@ -120,6 +120,79 @@ struct DockerContainerRuntimeBuildRequestTests {
         #expect(request.healthcheck?.startPeriod == 2_000_000_000)
     }
 
+    @Test("mapInspection maps healthy status")
+    func mapInspectionHealthy() {
+        let response = InspectContainerResponse(
+            id: "c1",
+            name: "test",
+            state: .init(
+                status: "running",
+                running: true,
+                health: .init(status: "healthy")
+            ),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.isRunning == true)
+        #expect(result.healthStatus == .healthy)
+    }
+
+    @Test("mapInspection maps unhealthy status")
+    func mapInspectionUnhealthy() {
+        let response = InspectContainerResponse(
+            id: "c2",
+            name: "test",
+            state: .init(
+                status: "running",
+                running: true,
+                health: .init(status: "unhealthy")
+            ),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.healthStatus == .unhealthy)
+    }
+
+    @Test("mapInspection maps starting status")
+    func mapInspectionStarting() {
+        let response = InspectContainerResponse(
+            id: "c3",
+            name: "test",
+            state: .init(
+                status: "running",
+                running: true,
+                health: .init(status: "starting")
+            ),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.healthStatus == .starting)
+    }
+
+    @Test("mapInspection defaults to notConfigured when no health check")
+    func mapInspectionNoHealth() {
+        let response = InspectContainerResponse(
+            id: "c4",
+            name: "test",
+            state: .init(status: "running", running: true, health: nil),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.healthStatus == .notConfigured)
+    }
+
+    @Test("mapInspection reflects running state")
+    func mapInspectionNotRunning() {
+        let response = InspectContainerResponse(
+            id: "c5",
+            name: "test",
+            state: .init(status: "exited", running: false, health: nil),
+            networkSettings: .init()
+        )
+        let result = DockerContainerRuntime.mapInspection(response)
+        #expect(result.isRunning == false)
+    }
+
     @Test("Full config round-trips through JSON encoding")
     func fullConfigJsonRoundTrip() throws {
         let config = ContainerConfiguration(

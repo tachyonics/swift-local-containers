@@ -56,6 +56,11 @@ public struct DockerContainerRuntime: ContainerRuntime {
 
     public func inspect(container: RunningContainer) async throws -> ContainerInspection {
         let response = try await client.inspectContainer(id: container.id)
+        return Self.mapInspection(response)
+    }
+
+    /// Maps a Docker inspect response to a ``ContainerInspection``.
+    static func mapInspection(_ response: InspectContainerResponse) -> ContainerInspection {
         let healthStatus: HealthStatus =
             switch response.state.health?.status {
             case "healthy": .healthy

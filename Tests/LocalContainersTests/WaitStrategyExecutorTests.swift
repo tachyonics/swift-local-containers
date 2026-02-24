@@ -120,6 +120,38 @@ struct PortStrategyTests {
         )
     }
 
+    @Test("Port throws portNotFound when container has no ports")
+    func portNoPorts() async {
+        let container = RunningContainer(
+            id: "test-noport",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: []
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .port,
+            waitTimeout: .seconds(1)
+        )
+        let runtime = MockContainerRuntime()
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .portNotFound(let port) = containerError
+            else {
+                return false
+            }
+            return port == 0
+        }
+    }
+
     @Test("Port times out when no listener")
     func portTimesOut() async {
         let container = RunningContainer(

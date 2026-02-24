@@ -412,4 +412,51 @@ struct DemultiplexDockerLogsTests {
 
         #expect(result == "")
     }
+
+    @Test("Short buffer (less than 8 bytes) returns as plain text")
+    func shortBuffer() {
+        let buffer = ByteBuffer(string: "short")
+        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+
+        #expect(result == "short")
+    }
+
+    @Test("Frame followed by trailing bytes includes trailing content")
+    func trailingBytes() {
+        let payload = Array("data\n".utf8)
+
+        var data = Data()
+        // Valid stdout frame
+        data.append(contentsOf: [1, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(payload.count).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: payload)
+        // Trailing bytes (incomplete frame — less than 8 bytes)
+        data.append(contentsOf: [0xFF, 0xFE])
+
+        let buffer = ByteBuffer(data: data)
+        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+
+        #expect(result.contains("data\n"))
+    }
+
+    @Test("Truncated frame size causes loop to exit gracefully")
+    func truncatedFrame() {
+        let payload = Array("hello\n".utf8)
+
+        var data = Data()
+        // Valid frame
+        data.append(contentsOf: [1, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(payload.count).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: payload)
+        // Second frame header claims 1000 bytes but buffer ends
+        data.append(contentsOf: [1, 0, 0, 0])
+        withUnsafeBytes(of: UInt32(1000).bigEndian) { data.append(contentsOf: $0) }
+        data.append(contentsOf: Array("short".utf8))
+
+        let buffer = ByteBuffer(data: data)
+        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+
+        // First frame is extracted, truncated second frame is not
+        #expect(result.contains("hello\n"))
+    }
 }
