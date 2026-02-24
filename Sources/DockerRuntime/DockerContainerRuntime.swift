@@ -38,8 +38,8 @@ public struct DockerContainerRuntime: ContainerRuntime {
         let inspection = try await client.inspectContainer(id: response.id)
         let resolvedPorts = DockerPortResolver.resolve(from: inspection.networkSettings)
 
-        let gateway = Self.extractGateway(from: inspection.networkSettings)
-        let host = Self.resolveHost(gateway: gateway)
+        let gateway = extractGateway(from: inspection.networkSettings)
+        let host = resolveHost(gateway: gateway)
 
         return RunningContainer(
             id: response.id,
@@ -60,11 +60,11 @@ public struct DockerContainerRuntime: ContainerRuntime {
 
     public func inspect(container: RunningContainer) async throws -> ContainerInspection {
         let response = try await client.inspectContainer(id: container.id)
-        return Self.mapInspection(response)
+        return mapInspection(response)
     }
 
     /// Maps a Docker inspect response to a ``ContainerInspection``.
-    static func mapInspection(_ response: InspectContainerResponse) -> ContainerInspection {
+    func mapInspection(_ response: InspectContainerResponse) -> ContainerInspection {
         let healthStatus: HealthStatus =
             switch response.state.health?.status {
             case "healthy": .healthy
@@ -86,7 +86,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
     /// The top-level `Gateway` field in Docker's inspect response is often empty.
     /// The actual gateway is inside `Networks["bridge"].Gateway` (or whichever
     /// network the container is attached to).
-    static func extractGateway(
+    func extractGateway(
         from networkSettings: InspectContainerResponse.NetworkSettings
     ) -> String? {
         // Prefer the top-level gateway if it's populated
@@ -109,7 +109,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
     /// When running inside a Docker container (detected via `/.dockerenv`),
     /// forwarded ports are on the Docker host, not `127.0.0.1` inside the
     /// current container. In that case, the Docker bridge gateway IP is used.
-    static func resolveHost(gateway: String?) -> String {
+    func resolveHost(gateway: String?) -> String {
         if FileManager.default.fileExists(atPath: "/.dockerenv"),
             let gateway, !gateway.isEmpty
         {

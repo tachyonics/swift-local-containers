@@ -42,37 +42,39 @@ private func makeClient(
 
 @Suite("DockerAPIClient.parseImageReference")
 struct ParseImageReferenceTests {
+    private let client = makeClient(returning: makeResponse(status: .ok, body: "")).client
+
     @Test("Simple image without tag defaults to latest")
     func simpleImage() {
-        let (image, tag) = DockerAPIClient.parseImageReference("nginx")
+        let (image, tag) = client.parseImageReference("nginx")
         #expect(image == "nginx")
         #expect(tag == "latest")
     }
 
     @Test("Image with tag")
     func imageWithTag() {
-        let (image, tag) = DockerAPIClient.parseImageReference("nginx:1.25")
+        let (image, tag) = client.parseImageReference("nginx:1.25")
         #expect(image == "nginx")
         #expect(tag == "1.25")
     }
 
     @Test("Namespaced image with tag")
     func namespacedImageWithTag() {
-        let (image, tag) = DockerAPIClient.parseImageReference("localstack/localstack:3.0")
+        let (image, tag) = client.parseImageReference("localstack/localstack:3.0")
         #expect(image == "localstack/localstack")
         #expect(tag == "3.0")
     }
 
     @Test("Registry with port and no tag defaults to latest")
     func registryWithPort() {
-        let (image, tag) = DockerAPIClient.parseImageReference("registry:5000/myimage")
+        let (image, tag) = client.parseImageReference("registry:5000/myimage")
         #expect(image == "registry:5000/myimage")
         #expect(tag == "latest")
     }
 
     @Test("Registry with port and tag")
     func registryWithPortAndTag() {
-        let (image, tag) = DockerAPIClient.parseImageReference("registry:5000/myimage:v2")
+        let (image, tag) = client.parseImageReference("registry:5000/myimage:v2")
         #expect(image == "registry:5000/myimage")
         #expect(tag == "v2")
     }
@@ -375,6 +377,8 @@ struct ContainerLogsTests {
 
 @Suite("DockerAPIClient.demultiplexDockerLogs")
 struct DemultiplexDockerLogsTests {
+    private let client = makeClient(returning: makeResponse(status: .ok, body: "")).client
+
     @Test("Demultiplexes multiple frames correctly")
     func multipleFrames() {
         let frame1Payload = Array("stdout data\n".utf8)
@@ -391,7 +395,7 @@ struct DemultiplexDockerLogsTests {
         data.append(contentsOf: frame2Payload)
 
         let buffer = ByteBuffer(data: data)
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         #expect(result == "stdout data\nstderr data\n")
     }
@@ -400,7 +404,7 @@ struct DemultiplexDockerLogsTests {
     func plainText() {
         let text = "Hello, this is plain text log output\n"
         let buffer = ByteBuffer(string: text)
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         #expect(result == text)
     }
@@ -408,7 +412,7 @@ struct DemultiplexDockerLogsTests {
     @Test("Empty buffer returns empty string")
     func emptyBuffer() {
         let buffer = ByteBuffer()
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         #expect(result == "")
     }
@@ -416,7 +420,7 @@ struct DemultiplexDockerLogsTests {
     @Test("Short buffer (less than 8 bytes) returns as plain text")
     func shortBuffer() {
         let buffer = ByteBuffer(string: "short")
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         #expect(result == "short")
     }
@@ -434,7 +438,7 @@ struct DemultiplexDockerLogsTests {
         data.append(contentsOf: [0xFF, 0xFE])
 
         let buffer = ByteBuffer(data: data)
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         #expect(result.contains("data\n"))
     }
@@ -454,7 +458,7 @@ struct DemultiplexDockerLogsTests {
         data.append(contentsOf: Array(remainder.utf8))
 
         let buffer = ByteBuffer(data: data)
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         // First frame extracted, then remainder treated as plain text
         #expect(result.hasPrefix("first\n"))
@@ -476,7 +480,7 @@ struct DemultiplexDockerLogsTests {
         data.append(contentsOf: Array("short".utf8))
 
         let buffer = ByteBuffer(data: data)
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.demultiplexDockerLogs(buffer)
+        let result = client.demultiplexDockerLogs(buffer)
 
         // First frame is extracted, truncated second frame is not
         #expect(result.contains("hello\n"))

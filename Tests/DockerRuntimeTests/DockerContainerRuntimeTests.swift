@@ -132,7 +132,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             ),
             networkSettings: .init()
         )
-        let result = DockerContainerRuntime.mapInspection(response)
+        let result = runtime.mapInspection(response)
         #expect(result.isRunning == true)
         #expect(result.healthStatus == .healthy)
     }
@@ -149,7 +149,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             ),
             networkSettings: .init()
         )
-        let result = DockerContainerRuntime.mapInspection(response)
+        let result = runtime.mapInspection(response)
         #expect(result.healthStatus == .unhealthy)
     }
 
@@ -165,7 +165,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             ),
             networkSettings: .init()
         )
-        let result = DockerContainerRuntime.mapInspection(response)
+        let result = runtime.mapInspection(response)
         #expect(result.healthStatus == .starting)
     }
 
@@ -177,7 +177,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             state: .init(status: "running", running: true, health: nil),
             networkSettings: .init()
         )
-        let result = DockerContainerRuntime.mapInspection(response)
+        let result = runtime.mapInspection(response)
         #expect(result.healthStatus == .notConfigured)
     }
 
@@ -189,7 +189,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             state: .init(status: "exited", running: false, health: nil),
             networkSettings: .init()
         )
-        let result = DockerContainerRuntime.mapInspection(response)
+        let result = runtime.mapInspection(response)
         #expect(result.isRunning == false)
     }
 
@@ -201,7 +201,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             gateway: "10.0.0.1",
             networks: ["bridge": .init(gateway: "172.17.0.1")]
         )
-        #expect(DockerContainerRuntime.extractGateway(from: settings) == "10.0.0.1")
+        #expect(runtime.extractGateway(from: settings) == "10.0.0.1")
     }
 
     @Test("extractGateway falls back to Networks map when top-level is empty")
@@ -210,7 +210,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             gateway: "",
             networks: ["bridge": .init(gateway: "172.17.0.1")]
         )
-        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.17.0.1")
+        #expect(runtime.extractGateway(from: settings) == "172.17.0.1")
     }
 
     @Test("extractGateway falls back to Networks map when top-level is nil")
@@ -219,7 +219,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             gateway: nil,
             networks: ["bridge": .init(gateway: "172.18.0.1")]
         )
-        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.18.0.1")
+        #expect(runtime.extractGateway(from: settings) == "172.18.0.1")
     }
 
     @Test("extractGateway returns nil when no gateway available")
@@ -228,7 +228,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             gateway: "",
             networks: [:]
         )
-        #expect(DockerContainerRuntime.extractGateway(from: settings) == nil)
+        #expect(runtime.extractGateway(from: settings) == nil)
     }
 
     @Test("extractGateway skips networks with empty gateway")
@@ -240,14 +240,14 @@ struct DockerContainerRuntimeBuildRequestTests {
                 "bridge": .init(gateway: "172.17.0.1"),
             ]
         )
-        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.17.0.1")
+        #expect(runtime.extractGateway(from: settings) == "172.17.0.1")
     }
 
     // MARK: - resolveHost
 
     @Test("resolveHost uses gateway when inside Docker, 127.0.0.1 otherwise")
     func resolveHostWithGateway() {
-        let host = DockerContainerRuntime.resolveHost(gateway: "172.17.0.1")
+        let host = runtime.resolveHost(gateway: "172.17.0.1")
         let inDocker = FileManager.default.fileExists(atPath: "/.dockerenv")
         if inDocker {
             #expect(host == "172.17.0.1")
@@ -258,12 +258,12 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     @Test("resolveHost returns 127.0.0.1 when gateway is nil")
     func resolveHostNilGateway() {
-        #expect(DockerContainerRuntime.resolveHost(gateway: nil) == "127.0.0.1")
+        #expect(runtime.resolveHost(gateway: nil) == "127.0.0.1")
     }
 
     @Test("resolveHost returns 127.0.0.1 when gateway is empty")
     func resolveHostEmptyGateway() {
-        #expect(DockerContainerRuntime.resolveHost(gateway: "") == "127.0.0.1")
+        #expect(runtime.resolveHost(gateway: "") == "127.0.0.1")
     }
 
     @Test("Full config round-trips through JSON encoding")
