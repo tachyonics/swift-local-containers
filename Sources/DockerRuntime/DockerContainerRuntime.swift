@@ -1,3 +1,4 @@
+import Foundation
 import LocalContainers
 import Logging
 
@@ -37,11 +38,14 @@ public struct DockerContainerRuntime: ContainerRuntime {
         let inspection = try await client.inspectContainer(id: response.id)
         let resolvedPorts = DockerPortResolver.resolve(from: inspection.networkSettings)
 
+        let gateway = Self.extractGateway(from: inspection.networkSettings)
+        let host = Self.resolveHost(gateway: gateway)
+
         return RunningContainer(
             id: response.id,
             name: inspection.name,
             image: configuration.image,
-            host: "127.0.0.1",
+            host: host,
             ports: resolvedPorts
         )
     }
@@ -76,6 +80,43 @@ public struct DockerContainerRuntime: ContainerRuntime {
     }
 
     // MARK: - Internal
+
+    /// Extracts the bridge gateway IP from Docker network settings.
+    ///
+    /// The top-level `Gateway` field in Docker's inspect response is often empty.
+    /// The actual gateway is inside `Networks["bridge"].Gateway` (or whichever
+    /// network the container is attached to).
+    static func extractGateway(
+        from networkSettings: InspectContainerResponse.NetworkSettings
+    ) -> String? {
+        // Prefer the top-level gateway if it's populated
+        if let gw = networkSettings.gateway, !gw.isEmpty {
+            return gw
+        }
+        // Fall back to the first non-empty gateway in the Networks map
+        if let networks = networkSettings.networks {
+            for (_, info) in networks {
+                if let gw = info.gateway, !gw.isEmpty {
+                    return gw
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Determines the host address to use for connecting to container ports.
+    ///
+    /// When running inside a Docker container (detected via `/.dockerenv`),
+    /// forwarded ports are on the Docker host, not `127.0.0.1` inside the
+    /// current container. In that case, the Docker bridge gateway IP is used.
+    static func resolveHost(gateway: String?) -> String {
+        if FileManager.default.fileExists(atPath: "/.dockerenv"),
+            let gateway, !gateway.isEmpty
+        {
+            return gateway
+        }
+        return "127.0.0.1"
+    }
 
     func buildCreateRequest(
         from config: ContainerConfiguration

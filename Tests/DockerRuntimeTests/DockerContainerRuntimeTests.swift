@@ -193,6 +193,72 @@ struct DockerContainerRuntimeBuildRequestTests {
         #expect(result.isRunning == false)
     }
 
+    // MARK: - extractGateway
+
+    @Test("extractGateway prefers top-level gateway when populated")
+    func extractGatewayTopLevel() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: "10.0.0.1",
+            networks: ["bridge": .init(gateway: "172.17.0.1")]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "10.0.0.1")
+    }
+
+    @Test("extractGateway falls back to Networks map when top-level is empty")
+    func extractGatewayFromNetworks() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: "",
+            networks: ["bridge": .init(gateway: "172.17.0.1")]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.17.0.1")
+    }
+
+    @Test("extractGateway falls back to Networks map when top-level is nil")
+    func extractGatewayFromNetworksNilTopLevel() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: nil,
+            networks: ["bridge": .init(gateway: "172.18.0.1")]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.18.0.1")
+    }
+
+    @Test("extractGateway returns nil when no gateway available")
+    func extractGatewayNone() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: "",
+            networks: [:]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == nil)
+    }
+
+    @Test("extractGateway skips networks with empty gateway")
+    func extractGatewaySkipsEmpty() {
+        let settings = InspectContainerResponse.NetworkSettings(
+            gateway: nil,
+            networks: [
+                "none": .init(gateway: ""),
+                "bridge": .init(gateway: "172.17.0.1"),
+            ]
+        )
+        #expect(DockerContainerRuntime.extractGateway(from: settings) == "172.17.0.1")
+    }
+
+    // MARK: - resolveHost
+
+    @Test("resolveHost returns 127.0.0.1 when not in Docker")
+    func resolveHostDefault() {
+        // This test runs on the host, so /.dockerenv should not exist
+        let host = DockerContainerRuntime.resolveHost(gateway: "172.17.0.1")
+        // When not running inside a container, always returns 127.0.0.1
+        // regardless of gateway value
+        #expect(host == "127.0.0.1")
+    }
+
+    @Test("resolveHost returns 127.0.0.1 when gateway is nil")
+    func resolveHostNilGateway() {
+        #expect(DockerContainerRuntime.resolveHost(gateway: nil) == "127.0.0.1")
+    }
+
     @Test("Full config round-trips through JSON encoding")
     func fullConfigJsonRoundTrip() throws {
         let config = ContainerConfiguration(
