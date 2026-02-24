@@ -141,7 +141,7 @@ package enum WaitStrategyExecutor {
     private static let sockStream = SOCK_STREAM
     #endif
 
-    private static func checkTCPPort(host: String, port: UInt16) -> Bool {
+    static func checkTCPPort(host: String, port: UInt16) -> Bool {
         let fd = socket(AF_INET, sockStream, 0)
         guard fd >= 0 else { return false }
         defer { close(fd) }

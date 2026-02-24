@@ -98,6 +98,26 @@ private func createTCPListener() throws -> (fd: Int32, port: UInt16) {
     return (fd, UInt16(bigEndian: boundAddr.sin_port))
 }
 
+// MARK: - checkTCPPort Tests
+
+@Suite("WaitStrategyExecutor - checkTCPPort")
+struct CheckTCPPortTests {
+    @Test("Returns false for invalid host address")
+    func invalidHost() {
+        let result = WaitStrategyExecutor.checkTCPPort(host: "not-an-ip", port: 80)
+        #expect(result == false)
+    }
+
+    @Test("Returns true when listener is available on loopback")
+    func immediateSuccess() throws {
+        let (listenerFD, port) = try createTCPListener()
+        defer { close(listenerFD) }
+
+        let result = WaitStrategyExecutor.checkTCPPort(host: "127.0.0.1", port: port)
+        #expect(result == true)
+    }
+}
+
 // MARK: - Port Strategy Tests
 
 @Suite("WaitStrategyExecutor - Port")
