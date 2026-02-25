@@ -213,7 +213,8 @@ struct HealthCheckStrategyTests {
     func healthCheckSucceeds() async throws {
         var expectations = MockTestContainerRuntime.Expectations()
         when(
-            expectations.inspect(container: .any), times: 1,
+            expectations.inspect(container: .any),
+            times: 1,
             return: ContainerInspection(isRunning: true, healthStatus: .starting)
         )
         when(

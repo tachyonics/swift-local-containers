@@ -30,7 +30,9 @@ struct SharedContainerManagerTests {
     @Test("container(for:runtime:) starts container and executes wait strategy")
     func containerStartsWithWait() async throws {
         let stubbedContainer = RunningContainer(
-            id: "stub-1", name: "stub", image: "test:latest"
+            id: "stub-1",
+            name: "stub",
+            image: "test:latest"
         )
         var expectations = MockTestContainerRuntime.Expectations()
         when(expectations.pullImage(.any), complete: .withSuccess)
