@@ -44,7 +44,7 @@ struct PlatformRuntimeTests {
 
         try await runtime.pullImage("nginx:latest")
 
-        verify(mock, .atLeastOnce).pullImage("nginx:latest")
+        verify(mock).pullImage("nginx:latest")
     }
 
     @Test("startContainer delegates and returns the result")
@@ -55,7 +55,7 @@ struct PlatformRuntimeTests {
         let config = ContainerConfiguration(image: "redis:7")
         let container = try await runtime.startContainer(from: config)
 
-        verify(mock, .atLeastOnce).startContainer(from: .matching { $0.image == "redis:7" })
+        verify(mock).startContainer(from: .matching { $0.image == "redis:7" })
         #expect(container.id == "stub-1")
     }
 
@@ -67,7 +67,7 @@ struct PlatformRuntimeTests {
 
         try await runtime.stopContainer(container)
 
-        verify(mock, .atLeastOnce).stopContainer(container)
+        verify(mock).stopContainer(container)
     }
 
     @Test("removeContainer delegates to underlying runtime")
@@ -78,7 +78,7 @@ struct PlatformRuntimeTests {
 
         try await runtime.removeContainer(container)
 
-        verify(mock, .atLeastOnce).removeContainer(container)
+        verify(mock).removeContainer(container)
     }
 
     @Test("inspectContainer delegates to underlying runtime")
@@ -89,7 +89,7 @@ struct PlatformRuntimeTests {
 
         let inspection = try await runtime.inspect(container: container)
 
-        verify(mock, .atLeastOnce).inspect(container: container)
+        verify(mock).inspect(container: container)
         #expect(inspection.isRunning == true)
         #expect(inspection.healthStatus == .healthy)
     }
@@ -102,7 +102,7 @@ struct PlatformRuntimeTests {
 
         let logs = try await runtime.logs(for: container)
 
-        verify(mock, .atLeastOnce).logs(for: container)
+        verify(mock).logs(for: container)
         #expect(logs == "")
     }
 
