@@ -76,7 +76,10 @@ let package = Package(
 
         .testTarget(
             name: "LocalContainersTests",
-            dependencies: ["LocalContainers"]
+            dependencies: [
+                "LocalContainers",
+                .product(name: "Smockable", package: "smockable"),
+            ]
         ),
 
         .testTarget(
@@ -97,6 +100,7 @@ let package = Package(
             dependencies: [
                 "ContainerTestSupport",
                 "LocalContainers",
+                .product(name: "Smockable", package: "smockable"),
             ]
         ),
 
@@ -105,6 +109,7 @@ let package = Package(
             dependencies: [
                 "PlatformRuntime",
                 "LocalContainers",
+                .product(name: "Smockable", package: "smockable"),
             ]
         ),
 
