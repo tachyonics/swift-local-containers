@@ -17,7 +17,7 @@ public struct ResolvedPortMapping: Sendable, Hashable {
 }
 
 /// A snapshot of a running container's state. Value type — the runtime owns the actual lifecycle.
-public struct RunningContainer: Sendable {
+public struct RunningContainer: Sendable, Equatable {
     /// Runtime-assigned container identifier.
     public let id: String
 

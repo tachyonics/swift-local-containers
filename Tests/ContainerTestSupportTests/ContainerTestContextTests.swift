@@ -1,33 +1,17 @@
+import Smockable
 import Testing
 
 @testable import ContainerTestSupport
 @testable import LocalContainers
 
-// MARK: - Stub Runtime
-
-private actor StubContainerRuntime: ContainerRuntime {
-    var pullCalled = false
-    var startCalled = false
-
-    func pullImage(_ reference: String) async throws {
-        pullCalled = true
-    }
-
-    func startContainer(
-        from configuration: ContainerConfiguration
-    ) async throws -> RunningContainer {
-        startCalled = true
-        return RunningContainer(id: "stub-1", name: "stub", image: configuration.image)
-    }
-
-    func stopContainer(_ container: RunningContainer) async throws {}
-    func removeContainer(_ container: RunningContainer) async throws {}
-
-    func inspect(container: RunningContainer) async throws -> ContainerInspection {
-        ContainerInspection(isRunning: true, healthStatus: .healthy)
-    }
-
-    func logs(for container: RunningContainer) async throws -> String { "" }
+@Smock(additionalEquatableTypes: [RunningContainer.self])
+protocol TestContainerRuntime: ContainerRuntime {
+    func pullImage(_ reference: String) async throws
+    func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer
+    func stopContainer(_ container: RunningContainer) async throws
+    func removeContainer(_ container: RunningContainer) async throws
+    func inspect(container: RunningContainer) async throws -> ContainerInspection
+    func logs(for container: RunningContainer) async throws -> String
 }
 
 // MARK: - SharedContainerManager Tests
@@ -45,14 +29,23 @@ private enum SharedTestKey: ContainerKey {
 struct SharedContainerManagerTests {
     @Test("container(for:runtime:) starts container and executes wait strategy")
     func containerStartsWithWait() async throws {
-        let runtime = StubContainerRuntime()
+        let stubbedContainer = RunningContainer(
+            id: "stub-1", name: "stub", image: "test:latest"
+        )
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(expectations.pullImage(.any), complete: .withSuccess)
+        when(expectations.startContainer(from: .any), return: stubbedContainer)
+        when(expectations.stopContainer(.any), complete: .withSuccess)
+        when(expectations.removeContainer(.any), complete: .withSuccess)
+        let mock = MockTestContainerRuntime(expectations: expectations)
+
         let container = try await SharedContainerManager.shared.container(
             for: SharedTestKey.self,
-            runtime: runtime
+            runtime: mock
         )
 
-        #expect(await runtime.pullCalled)
-        #expect(await runtime.startCalled)
+        verify(mock, .atLeastOnce).pullImage("test:latest")
+        verify(mock, .atLeastOnce).startContainer(from: .matching { $0.image == "test:latest" })
         #expect(container.id == "stub-1")
     }
 }

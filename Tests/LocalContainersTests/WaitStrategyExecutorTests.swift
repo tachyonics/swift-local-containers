@@ -1,3 +1,4 @@
+import Smockable
 import Testing
 
 @testable import LocalContainers
@@ -12,40 +13,31 @@ import Musl
 
 // MARK: - Mock Runtime
 
-private actor MockContainerRuntime: ContainerRuntime {
-    var inspectionResults: [ContainerInspection] = []
-    var logResults: [String] = []
-    private var inspectCallCount = 0
-    private var logsCallCount = 0
+@Smock(additionalEquatableTypes: [RunningContainer.self])
+protocol TestContainerRuntime: ContainerRuntime {
+    func pullImage(_ reference: String) async throws
+    func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer
+    func stopContainer(_ container: RunningContainer) async throws
+    func removeContainer(_ container: RunningContainer) async throws
+    func inspect(container: RunningContainer) async throws -> ContainerInspection
+    func logs(for container: RunningContainer) async throws -> String
+}
 
-    func pullImage(_ reference: String) async throws {}
-
-    func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer {
-        RunningContainer(id: "mock-1", name: "mock", image: "mock:latest")
-    }
-
-    func stopContainer(_ container: RunningContainer) async throws {}
-    func removeContainer(_ container: RunningContainer) async throws {}
-
-    func inspect(container: RunningContainer) async throws -> ContainerInspection {
-        let index = min(inspectCallCount, inspectionResults.count - 1)
-        inspectCallCount += 1
-        return inspectionResults[index]
-    }
-
-    func logs(for container: RunningContainer) async throws -> String {
-        let index = min(logsCallCount, logResults.count - 1)
-        logsCallCount += 1
-        return logResults[index]
-    }
-
-    func setInspectionResults(_ results: [ContainerInspection]) {
-        inspectionResults = results
-    }
-
-    func setLogResults(_ results: [String]) {
-        logResults = results
-    }
+private func makeNoOpMock() -> MockTestContainerRuntime {
+    var expectations = MockTestContainerRuntime.Expectations()
+    when(expectations.pullImage(.any), complete: .withSuccess)
+    when(
+        expectations.startContainer(from: .any),
+        return: RunningContainer(id: "mock-1", name: "mock", image: "mock:latest")
+    )
+    when(expectations.stopContainer(.any), complete: .withSuccess)
+    when(expectations.removeContainer(.any), complete: .withSuccess)
+    when(
+        expectations.inspect(container: .any),
+        return: ContainerInspection(isRunning: true, healthStatus: .healthy)
+    )
+    when(expectations.logs(for: .any), return: "")
+    return MockTestContainerRuntime(expectations: expectations)
 }
 
 // MARK: - TCP Helper
@@ -139,7 +131,7 @@ struct PortStrategyTests {
             waitStrategy: .port,
             waitTimeout: .seconds(5)
         )
-        let runtime = MockContainerRuntime()
+        let runtime = makeNoOpMock()
 
         try await WaitStrategyExecutor.waitUntilReady(
             container: container,
@@ -162,7 +154,7 @@ struct PortStrategyTests {
             waitStrategy: .port,
             waitTimeout: .seconds(1)
         )
-        let runtime = MockContainerRuntime()
+        let runtime = makeNoOpMock()
 
         await #expect {
             try await WaitStrategyExecutor.waitUntilReady(
@@ -194,7 +186,7 @@ struct PortStrategyTests {
             waitStrategy: .port,
             waitTimeout: .seconds(1)
         )
-        let runtime = MockContainerRuntime()
+        let runtime = makeNoOpMock()
 
         await #expect {
             try await WaitStrategyExecutor.waitUntilReady(
@@ -219,11 +211,16 @@ struct PortStrategyTests {
 struct HealthCheckStrategyTests {
     @Test("Health check succeeds after starting then healthy")
     func healthCheckSucceeds() async throws {
-        let runtime = MockContainerRuntime()
-        await runtime.setInspectionResults([
-            ContainerInspection(isRunning: true, healthStatus: .starting),
-            ContainerInspection(isRunning: true, healthStatus: .healthy),
-        ])
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any), times: 1,
+            return: ContainerInspection(isRunning: true, healthStatus: .starting)
+        )
+        when(
+            expectations.inspect(container: .any),
+            return: ContainerInspection(isRunning: true, healthStatus: .healthy)
+        )
+        let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-3", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -241,10 +238,13 @@ struct HealthCheckStrategyTests {
 
     @Test("Health check times out when always starting")
     func healthCheckTimesOut() async {
-        let runtime = MockContainerRuntime()
-        await runtime.setInspectionResults([
-            ContainerInspection(isRunning: true, healthStatus: .starting)
-        ])
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true, healthStatus: .starting)
+        )
+        let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-4", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -271,10 +271,12 @@ struct HealthCheckStrategyTests {
 
     @Test("Health check fails on unhealthy")
     func healthCheckFailsOnUnhealthy() async {
-        let runtime = MockContainerRuntime()
-        await runtime.setInspectionResults([
-            ContainerInspection(isRunning: true, healthStatus: .unhealthy)
-        ])
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            return: ContainerInspection(isRunning: true, healthStatus: .unhealthy)
+        )
+        let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-5", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -306,10 +308,12 @@ struct HealthCheckStrategyTests {
 struct LogStrategyTests {
     @Test("Log message found in output")
     func logMessageFound() async throws {
-        let runtime = MockContainerRuntime()
-        await runtime.setLogResults([
-            "Starting up...\nReady to accept connections\n"
-        ])
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.logs(for: .any),
+            return: "Starting up...\nReady to accept connections\n"
+        )
+        let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-6", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -327,10 +331,9 @@ struct LogStrategyTests {
 
     @Test("Log times out when message not present")
     func logTimesOut() async {
-        let runtime = MockContainerRuntime()
-        await runtime.setLogResults([
-            "Starting up...\n"
-        ])
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(expectations.logs(for: .any), times: .unbounded, return: "Starting up...\n")
+        let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-7", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
@@ -368,7 +371,7 @@ struct FixedDelayStrategyTests {
             waitStrategy: .fixedDelay(.milliseconds(100)),
             waitTimeout: .seconds(5)
         )
-        let runtime = MockContainerRuntime()
+        let runtime = makeNoOpMock()
 
         let start = ContinuousClock.now
         try await WaitStrategyExecutor.waitUntilReady(
@@ -399,7 +402,7 @@ struct CustomStrategyTests {
             },
             waitTimeout: .seconds(5)
         )
-        let runtime = MockContainerRuntime()
+        let runtime = makeNoOpMock()
 
         try await WaitStrategyExecutor.waitUntilReady(
             container: container,
