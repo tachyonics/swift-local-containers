@@ -4,15 +4,15 @@
 
 // MARK: - Create Container
 
-public struct CreateContainerRequest: Codable, Sendable {
-    public var image: String
-    public var env: [String]?
-    public var cmd: [String]?
-    public var exposedPorts: [String: EmptyObject]?
-    public var hostConfig: HostConfig?
-    public var healthcheck: Healthcheck?
+package struct CreateContainerRequest: Codable, Sendable {
+    package var image: String
+    package var env: [String]?
+    package var cmd: [String]?
+    package var exposedPorts: [String: EmptyObject]?
+    package var hostConfig: HostConfig?
+    package var healthcheck: Healthcheck?
 
-    public init(
+    package init(
         image: String,
         env: [String]? = nil,
         cmd: [String]? = nil,
@@ -38,15 +38,15 @@ public struct CreateContainerRequest: Codable, Sendable {
     }
 }
 
-public struct EmptyObject: Codable, Sendable {
-    public init() {}
+package struct EmptyObject: Codable, Sendable {
+    package init() {}
 }
 
-public struct HostConfig: Codable, Sendable {
-    public var portBindings: [String: [PortBinding]]?
-    public var binds: [String]?
+package struct HostConfig: Codable, Sendable {
+    package var portBindings: [String: [PortBinding]]?
+    package var binds: [String]?
 
-    public init(
+    package init(
         portBindings: [String: [PortBinding]]? = nil,
         binds: [String]? = nil
     ) {
@@ -60,11 +60,11 @@ public struct HostConfig: Codable, Sendable {
     }
 }
 
-public struct PortBinding: Codable, Sendable {
-    public var hostIp: String?
-    public var hostPort: String?
+package struct PortBinding: Codable, Sendable {
+    package var hostIp: String?
+    package var hostPort: String?
 
-    public init(hostIp: String? = nil, hostPort: String? = nil) {
+    package init(hostIp: String? = nil, hostPort: String? = nil) {
         self.hostIp = hostIp
         self.hostPort = hostPort
     }
@@ -75,14 +75,14 @@ public struct PortBinding: Codable, Sendable {
     }
 }
 
-public struct Healthcheck: Codable, Sendable {
-    public var test: [String]?
-    public var interval: Int?
-    public var timeout: Int?
-    public var retries: Int?
-    public var startPeriod: Int?
+package struct Healthcheck: Codable, Sendable {
+    package var test: [String]?
+    package var interval: Int?
+    package var timeout: Int?
+    package var retries: Int?
+    package var startPeriod: Int?
 
-    public init(
+    package init(
         test: [String]? = nil,
         interval: Int? = nil,
         timeout: Int? = nil,
@@ -105,9 +105,9 @@ public struct Healthcheck: Codable, Sendable {
     }
 }
 
-public struct CreateContainerResponse: Codable, Sendable {
-    public var id: String
-    public var warnings: [String]?
+package struct CreateContainerResponse: Codable, Sendable {
+    package var id: String
+    package var warnings: [String]?
 
     private enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -117,11 +117,11 @@ public struct CreateContainerResponse: Codable, Sendable {
 
 // MARK: - Inspect Container
 
-public struct InspectContainerResponse: Codable, Sendable {
-    public var id: String
-    public var name: String
-    public var state: InspectContainerState
-    public var networkSettings: InspectNetworkSettings
+package struct InspectContainerResponse: Codable, Sendable {
+    package var id: String
+    package var name: String
+    package var state: InspectContainerState
+    package var networkSettings: InspectNetworkSettings
 
     private enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -131,10 +131,10 @@ public struct InspectContainerResponse: Codable, Sendable {
     }
 }
 
-public struct InspectContainerState: Codable, Sendable {
-    public var status: String
-    public var running: Bool
-    public var health: InspectHealthState?
+package struct InspectContainerState: Codable, Sendable {
+    package var status: String
+    package var running: Bool
+    package var health: InspectHealthState?
 
     private enum CodingKeys: String, CodingKey {
         case status = "Status"
@@ -143,18 +143,18 @@ public struct InspectContainerState: Codable, Sendable {
     }
 }
 
-public struct InspectHealthState: Codable, Sendable {
-    public var status: String
+package struct InspectHealthState: Codable, Sendable {
+    package var status: String
 
     private enum CodingKeys: String, CodingKey {
         case status = "Status"
     }
 }
 
-public struct InspectNetworkSettings: Codable, Sendable {
-    public var ports: [String: [InspectPortMapping]?]?
-    public var gateway: String?
-    public var networks: [String: InspectNetworkInfo]?
+package struct InspectNetworkSettings: Codable, Sendable {
+    package var ports: [String: [InspectPortMapping]?]?
+    package var gateway: String?
+    package var networks: [String: InspectNetworkInfo]?
 
     private enum CodingKeys: String, CodingKey {
         case ports = "Ports"
@@ -163,9 +163,9 @@ public struct InspectNetworkSettings: Codable, Sendable {
     }
 }
 
-public struct InspectPortMapping: Codable, Sendable {
-    public var hostIp: String?
-    public var hostPort: String?
+package struct InspectPortMapping: Codable, Sendable {
+    package var hostIp: String?
+    package var hostPort: String?
 
     private enum CodingKeys: String, CodingKey {
         case hostIp = "HostIp"
@@ -173,8 +173,8 @@ public struct InspectPortMapping: Codable, Sendable {
     }
 }
 
-public struct InspectNetworkInfo: Codable, Sendable {
-    public var gateway: String?
+package struct InspectNetworkInfo: Codable, Sendable {
+    package var gateway: String?
 
     private enum CodingKeys: String, CodingKey {
         case gateway = "Gateway"
@@ -183,9 +183,9 @@ public struct InspectNetworkInfo: Codable, Sendable {
 
 // MARK: - Pull Image
 
-public struct PullImageProgress: Codable, Sendable {
-    public var status: String?
-    public var id: String?
-    public var progress: String?
-    public var error: String?
+package struct PullImageProgress: Codable, Sendable {
+    package var status: String?
+    package var id: String?
+    package var progress: String?
+    package var error: String?
 }

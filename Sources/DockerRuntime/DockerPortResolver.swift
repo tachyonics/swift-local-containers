@@ -1,10 +1,10 @@
 import LocalContainers
 
 /// Resolves Docker inspect response port mappings into ``ResolvedPortMapping`` values.
-public enum DockerPortResolver {
+package enum DockerPortResolver {
     /// Parse the `NetworkSettings.Ports` dictionary from a Docker inspect response
     /// into an array of ``ResolvedPortMapping``.
-    public static func resolve(
+    package static func resolve(
         from networkSettings: InspectNetworkSettings
     ) -> [ResolvedPortMapping] {
         guard let portMap = networkSettings.ports else { return [] }
