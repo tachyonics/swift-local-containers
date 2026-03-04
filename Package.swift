@@ -120,6 +120,7 @@ let package = Package(
                 "LocalStack",
                 "DockerRuntime",
                 "PlatformRuntime",
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
             ]
         ),
     ]
