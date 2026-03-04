@@ -197,7 +197,7 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     @Test("extractGateway prefers top-level gateway when populated")
     func extractGatewayTopLevel() {
-        let settings = InspectContainerResponse.NetworkSettings(
+        let settings = InspectNetworkSettings(
             gateway: "10.0.0.1",
             networks: ["bridge": .init(gateway: "172.17.0.1")]
         )
@@ -206,7 +206,7 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     @Test("extractGateway falls back to Networks map when top-level is empty")
     func extractGatewayFromNetworks() {
-        let settings = InspectContainerResponse.NetworkSettings(
+        let settings = InspectNetworkSettings(
             gateway: "",
             networks: ["bridge": .init(gateway: "172.17.0.1")]
         )
@@ -215,7 +215,7 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     @Test("extractGateway falls back to Networks map when top-level is nil")
     func extractGatewayFromNetworksNilTopLevel() {
-        let settings = InspectContainerResponse.NetworkSettings(
+        let settings = InspectNetworkSettings(
             gateway: nil,
             networks: ["bridge": .init(gateway: "172.18.0.1")]
         )
@@ -224,7 +224,7 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     @Test("extractGateway returns nil when no gateway available")
     func extractGatewayNone() {
-        let settings = InspectContainerResponse.NetworkSettings(
+        let settings = InspectNetworkSettings(
             gateway: "",
             networks: [:]
         )
@@ -233,7 +233,7 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     @Test("extractGateway skips networks with empty gateway")
     func extractGatewaySkipsEmpty() {
-        let settings = InspectContainerResponse.NetworkSettings(
+        let settings = InspectNetworkSettings(
             gateway: nil,
             networks: [
                 "none": .init(gateway: ""),

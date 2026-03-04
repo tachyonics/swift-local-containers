@@ -48,7 +48,7 @@ public struct CDKSetup: ContainerSetup {
             metadata: [
                 "stack": "\(stackName)",
                 "endpoint": "\(endpoint)",
-                "cdkApp": "\(cdkAppPath)",
+                "cdkApp": "\(cdkAppPath)"
             ]
         )
 

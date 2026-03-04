@@ -87,17 +87,17 @@ public struct DockerContainerRuntime: ContainerRuntime {
     /// The actual gateway is inside `Networks["bridge"].Gateway` (or whichever
     /// network the container is attached to).
     func extractGateway(
-        from networkSettings: InspectContainerResponse.NetworkSettings
+        from networkSettings: InspectNetworkSettings
     ) -> String? {
         // Prefer the top-level gateway if it's populated
-        if let gw = networkSettings.gateway, !gw.isEmpty {
-            return gw
+        if let gateway = networkSettings.gateway, !gateway.isEmpty {
+            return gateway
         }
         // Fall back to the first non-empty gateway in the Networks map
         if let networks = networkSettings.networks {
             for (_, info) in networks {
-                if let gw = info.gateway, !gw.isEmpty {
-                    return gw
+                if let infoGateway = info.gateway, !infoGateway.isEmpty {
+                    return infoGateway
                 }
             }
         }
@@ -111,8 +111,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
     /// current container. In that case, the Docker bridge gateway IP is used.
     func resolveHost(gateway: String?) -> String {
         if FileManager.default.fileExists(atPath: "/.dockerenv"),
-            let gateway, !gateway.isEmpty
-        {
+            let gateway, !gateway.isEmpty {
             return gateway
         }
         return "127.0.0.1"
@@ -148,13 +147,13 @@ public struct DockerContainerRuntime: ContainerRuntime {
         }
 
         var healthcheck: Healthcheck?
-        if let hc = config.healthCheck {
+        if let healthConfig = config.healthCheck {
             healthcheck = Healthcheck(
-                test: hc.test,
-                interval: Int(hc.interval.components.seconds) * 1_000_000_000,
-                timeout: Int(hc.timeout.components.seconds) * 1_000_000_000,
-                retries: hc.retries,
-                startPeriod: Int(hc.startPeriod.components.seconds) * 1_000_000_000
+                test: healthConfig.test,
+                interval: Int(healthConfig.interval.components.seconds) * 1_000_000_000,
+                timeout: Int(healthConfig.timeout.components.seconds) * 1_000_000_000,
+                retries: healthConfig.retries,
+                startPeriod: Int(healthConfig.startPeriod.components.seconds) * 1_000_000_000
             )
         }
 

@@ -5,7 +5,7 @@ public enum DockerPortResolver {
     /// Parse the `NetworkSettings.Ports` dictionary from a Docker inspect response
     /// into an array of ``ResolvedPortMapping``.
     public static func resolve(
-        from networkSettings: InspectContainerResponse.NetworkSettings
+        from networkSettings: InspectNetworkSettings
     ) -> [ResolvedPortMapping] {
         guard let portMap = networkSettings.ports else { return [] }
 

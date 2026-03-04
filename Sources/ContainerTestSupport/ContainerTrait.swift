@@ -86,7 +86,7 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
                     "Failed to clean up container",
                     metadata: [
                         "id": "\(container.id)",
-                        "error": "\(error)",
+                        "error": "\(error)"
                     ]
                 )
             }

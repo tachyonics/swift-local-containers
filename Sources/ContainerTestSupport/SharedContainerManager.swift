@@ -83,7 +83,7 @@ public actor SharedContainerManager {
                     "Failed to clean up container",
                     metadata: [
                         "id": "\(container.id)",
-                        "error": "\(error)",
+                        "error": "\(error)"
                     ]
                 )
             }

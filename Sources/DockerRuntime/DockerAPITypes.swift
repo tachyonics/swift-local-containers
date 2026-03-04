@@ -1,6 +1,6 @@
-/// Codable types matching the Docker Engine API JSON structures.
-///
-/// Properties use Swift naming conventions; `CodingKeys` map to Docker's JSON keys.
+// Codable types matching the Docker Engine API JSON structures.
+//
+// Properties use Swift naming conventions; `CodingKeys` map to Docker's JSON keys.
 
 // MARK: - Create Container
 
@@ -120,8 +120,8 @@ public struct CreateContainerResponse: Codable, Sendable {
 public struct InspectContainerResponse: Codable, Sendable {
     public var id: String
     public var name: String
-    public var state: ContainerState
-    public var networkSettings: NetworkSettings
+    public var state: InspectContainerState
+    public var networkSettings: InspectNetworkSettings
 
     private enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -129,55 +129,55 @@ public struct InspectContainerResponse: Codable, Sendable {
         case state = "State"
         case networkSettings = "NetworkSettings"
     }
+}
 
-    public struct ContainerState: Codable, Sendable {
-        public var status: String
-        public var running: Bool
-        public var health: HealthState?
+public struct InspectContainerState: Codable, Sendable {
+    public var status: String
+    public var running: Bool
+    public var health: InspectHealthState?
 
-        private enum CodingKeys: String, CodingKey {
-            case status = "Status"
-            case running = "Running"
-            case health = "Health"
-        }
+    private enum CodingKeys: String, CodingKey {
+        case status = "Status"
+        case running = "Running"
+        case health = "Health"
     }
+}
 
-    public struct HealthState: Codable, Sendable {
-        public var status: String
+public struct InspectHealthState: Codable, Sendable {
+    public var status: String
 
-        private enum CodingKeys: String, CodingKey {
-            case status = "Status"
-        }
+    private enum CodingKeys: String, CodingKey {
+        case status = "Status"
     }
+}
 
-    public struct NetworkSettings: Codable, Sendable {
-        public var ports: [String: [PortMapping]?]?
-        public var gateway: String?
-        public var networks: [String: NetworkInfo]?
+public struct InspectNetworkSettings: Codable, Sendable {
+    public var ports: [String: [InspectPortMapping]?]?
+    public var gateway: String?
+    public var networks: [String: InspectNetworkInfo]?
 
-        private enum CodingKeys: String, CodingKey {
-            case ports = "Ports"
-            case gateway = "Gateway"
-            case networks = "Networks"
-        }
+    private enum CodingKeys: String, CodingKey {
+        case ports = "Ports"
+        case gateway = "Gateway"
+        case networks = "Networks"
+    }
+}
 
-        public struct PortMapping: Codable, Sendable {
-            public var hostIp: String?
-            public var hostPort: String?
+public struct InspectPortMapping: Codable, Sendable {
+    public var hostIp: String?
+    public var hostPort: String?
 
-            private enum CodingKeys: String, CodingKey {
-                case hostIp = "HostIp"
-                case hostPort = "HostPort"
-            }
-        }
+    private enum CodingKeys: String, CodingKey {
+        case hostIp = "HostIp"
+        case hostPort = "HostPort"
+    }
+}
 
-        public struct NetworkInfo: Codable, Sendable {
-            public var gateway: String?
+public struct InspectNetworkInfo: Codable, Sendable {
+    public var gateway: String?
 
-            private enum CodingKeys: String, CodingKey {
-                case gateway = "Gateway"
-            }
-        }
+    private enum CodingKeys: String, CodingKey {
+        case gateway = "Gateway"
     }
 }
 

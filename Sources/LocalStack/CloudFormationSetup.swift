@@ -49,7 +49,7 @@ public struct CloudFormationSetup: ContainerSetup {
             metadata: [
                 "stack": "\(stackName)",
                 "endpoint": "\(endpoint)",
-                "template": "\(templatePath)",
+                "template": "\(templatePath)"
             ]
         )
 
@@ -79,16 +79,16 @@ public struct CloudFormationSetup: ContainerSetup {
         var parts = [
             "Action=\(formEncode("CreateStack"))",
             "StackName=\(formEncode(stackName))",
-            "TemplateBody=\(formEncode(templateBody))",
+            "TemplateBody=\(formEncode(templateBody))"
         ]
 
         for (index, key) in parameters.keys.sorted().enumerated() {
-            let n = index + 1
+            let memberIndex = index + 1
             parts.append(
-                "Parameters.member.\(n).ParameterKey=\(formEncode(key))"
+                "Parameters.member.\(memberIndex).ParameterKey=\(formEncode(key))"
             )
             parts.append(
-                "Parameters.member.\(n).ParameterValue=\(formEncode(parameters[key]!))"
+                "Parameters.member.\(memberIndex).ParameterValue=\(formEncode(parameters[key]!))"
             )
         }
 
@@ -210,9 +210,9 @@ public struct CloudFormationSetup: ContainerSetup {
 
 extension CharacterSet {
     fileprivate static let cloudFormationFormAllowed: CharacterSet = {
-        var cs = CharacterSet.alphanumerics
-        cs.insert(charactersIn: "-_.~")
-        return cs
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-_.~")
+        return allowed
     }()
 }
 
