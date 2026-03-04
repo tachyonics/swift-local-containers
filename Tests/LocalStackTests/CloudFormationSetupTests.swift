@@ -91,4 +91,50 @@ struct CloudFormationSetupTests {
         let outputs = setup.extractOutputs(from: xml)
         #expect(outputs.isEmpty)
     }
+
+    @Test("Skips member with missing OutputKey")
+    func extractOutputsMissingKey() {
+        let xml = """
+            <Outputs>
+              <member>
+                <OutputValue>some-value</OutputValue>
+              </member>
+            </Outputs>
+            """
+
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
+        #expect(outputs.isEmpty)
+    }
+
+    @Test("Skips member with missing OutputValue")
+    func extractOutputsMissingValue() {
+        let xml = """
+            <Outputs>
+              <member>
+                <OutputKey>BucketName</OutputKey>
+              </member>
+            </Outputs>
+            """
+
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
+        #expect(outputs.isEmpty)
+    }
+
+    @Test("Skips member with empty OutputKey tag")
+    func extractOutputsEmptyKey() {
+        let xml = """
+            <Outputs>
+              <member>
+                <OutputKey></OutputKey>
+                <OutputValue>some-value</OutputValue>
+              </member>
+            </Outputs>
+            """
+
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
+        #expect(outputs.isEmpty)
+    }
 }
