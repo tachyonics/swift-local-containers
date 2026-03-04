@@ -59,6 +59,52 @@ public struct CloudFormationSetup: ContainerSetup {
         _ = try? await deleteStack(endpoint: endpoint)
     }
 
+    // MARK: - Stack Outputs
+
+    /// Extracts output key-value pairs from a DescribeStacks XML response.
+    ///
+    /// Parses `<Outputs><member><OutputKey>…</OutputKey><OutputValue>…</OutputValue></member>…</Outputs>`.
+    internal func extractOutputs(from xml: String) -> [String: String] {
+        var outputs: [String: String] = [:]
+
+        guard let openRange = xml.range(of: "<Outputs>"),
+            let closeRange = xml.range(of: "</Outputs>", range: openRange.upperBound..<xml.endIndex)
+        else {
+            return outputs
+        }
+
+        let section = String(xml[openRange.upperBound..<closeRange.lowerBound])
+        var searchStart = section.startIndex
+
+        while let memberOpen = section.range(of: "<member>", range: searchStart..<section.endIndex),
+            let memberClose = section.range(of: "</member>", range: memberOpen.upperBound..<section.endIndex)
+        {
+            let member = String(section[memberOpen.upperBound..<memberClose.lowerBound])
+
+            if let key = extractTag("OutputKey", from: member),
+                let value = extractTag("OutputValue", from: member)
+            {
+                outputs[key] = value
+            }
+
+            searchStart = memberClose.upperBound
+        }
+
+        return outputs
+    }
+
+    private func extractTag(_ tag: String, from xml: String) -> String? {
+        let open = "<\(tag)>"
+        let close = "</\(tag)>"
+        guard let openRange = xml.range(of: open),
+            let closeRange = xml.range(of: close, range: openRange.upperBound..<xml.endIndex)
+        else {
+            return nil
+        }
+        let value = String(xml[openRange.upperBound..<closeRange.lowerBound])
+        return value.isEmpty ? nil : value
+    }
+
     // MARK: - Private
 
     private func createStack(endpoint: String, templateBody: String) async throws {

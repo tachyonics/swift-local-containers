@@ -143,4 +143,51 @@ struct ContainerTestContextTests {
 
         #expect(ContainerTestContext.current == nil)
     }
+
+    // MARK: - outputs(for:)
+
+    @Test("outputs(for:) returns stored stack outputs")
+    func outputsForKey() {
+        let expected = ["BucketName": "my-bucket", "QueueUrl": "http://localhost/queue"]
+        let ctx = ContainerTestContext(
+            containers: [ObjectIdentifier(FakeDB.self): Self.dbContainer],
+            stackOutputs: [ObjectIdentifier(FakeDB.self): expected]
+        )
+
+        let outputs = ctx.outputs(for: ObjectIdentifier(FakeDB.self))
+        #expect(outputs == expected)
+    }
+
+    @Test("outputs(for:) returns nil for unregistered key")
+    func outputsForMissingKey() {
+        let ctx = ContainerTestContext(
+            containers: [ObjectIdentifier(FakeDB.self): Self.dbContainer]
+        )
+
+        let outputs = ctx.outputs(for: ObjectIdentifier(Unregistered.self))
+        #expect(outputs == nil)
+    }
+
+    // MARK: - requireCurrent()
+
+    @Test("requireCurrent() throws when no context is set")
+    func requireCurrentThrows() {
+        #expect(throws: ContainerError.self) {
+            try ContainerTestContext.requireCurrent()
+        }
+    }
+
+    @Test("requireCurrent() returns context within withValue scope")
+    func requireCurrentReturns() {
+        let ctx = ContainerTestContext(containers: [
+            ObjectIdentifier(FakeDB.self): Self.dbContainer
+        ])
+
+        ContainerTestContext.$current.withValue(ctx) {
+            let current = try? ContainerTestContext.requireCurrent()
+            #expect(current != nil)
+            let db = try? current?[FakeDB.self]
+            #expect(db?.id == "pg-1")
+        }
+    }
 }
