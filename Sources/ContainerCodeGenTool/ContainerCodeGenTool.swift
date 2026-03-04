@@ -86,7 +86,7 @@ private let resourceTypeToService: [String: String] = [
     "AWS::EC2::VPC": "ec2",
     "AWS::EC2::Subnet": "ec2",
     "AWS::EC2::SecurityGroup": "ec2",
-    "AWS::Logs::LogGroup": "logs",
+    "AWS::Logs::LogGroup": "logs"
 ]
 
 private func mapResourceTypeToService(_ type: String) -> String? {

@@ -32,21 +32,25 @@ public struct ContainerSuiteMacro: MemberMacro {
                 // Check for @Container attribute
                 if let attr = findAttribute(named: "Container", in: varDecl) {
                     let args = parseContainerArgs(attr)
-                    containerProperties.append(ContainerProperty(
-                        name: propName,
-                        kind: .container(args),
-                        typeAnnotation: binding.typeAnnotation?.type.trimmedDescription
-                    ))
+                    containerProperties.append(
+                        ContainerProperty(
+                            name: propName,
+                            kind: .container(args),
+                            typeAnnotation: binding.typeAnnotation?.type.trimmedDescription
+                        )
+                    )
                 }
 
                 // Check for @LocalStackContainer attribute
                 if let attr = findAttribute(named: "LocalStackContainer", in: varDecl) {
                     let args = parseLocalStackContainerArgs(attr)
-                    containerProperties.append(ContainerProperty(
-                        name: propName,
-                        kind: .localStack(args),
-                        typeAnnotation: binding.typeAnnotation?.type.trimmedDescription
-                    ))
+                    containerProperties.append(
+                        ContainerProperty(
+                            name: propName,
+                            kind: .localStack(args),
+                            typeAnnotation: binding.typeAnnotation?.type.trimmedDescription
+                        )
+                    )
                 }
             }
         }
@@ -61,11 +65,13 @@ public struct ContainerSuiteMacro: MemberMacro {
         for prop in containerProperties {
             let keyName = "_\(capitalizeFirst(prop.name))Key"
             let specDecl = generateSpec(for: prop)
-            declarations.append("""
+            declarations.append(
+                """
                 enum \(raw: keyName): ContainerKey {
                     static let spec = \(raw: specDecl)
                 }
-                """)
+                """
+            )
         }
 
         // Generate _ContainerTraitImpl
@@ -73,9 +79,11 @@ public struct ContainerSuiteMacro: MemberMacro {
         declarations.append(contentsOf: traitImpl)
 
         // Generate static let containerTrait
-        declarations.append("""
+        declarations.append(
+            """
             static let containerTrait = _ContainerTraitImpl()
-            """)
+            """
+        )
 
         return declarations
     }
@@ -220,7 +228,10 @@ private func generateSpec(for prop: ContainerProperty) -> String {
         // For LocalStack, the spec is built at runtime using the StackOutputs type info.
         // The macro generates a placeholder spec; _ContainerTraitImpl reads the type's metadata.
         guard let typeName = prop.typeAnnotation else {
-            return "ContainerSpec(ContainerConfiguration(image: \"localstack/localstack:latest\", ports: [PortMapping(containerPort: 4566)], waitStrategy: .log(\"Ready.\")))"
+            let image = "localstack/localstack:latest"
+            let config =
+                "ContainerConfiguration(image: \"\(image)\", ports: [PortMapping(containerPort: 4566)], waitStrategy: .log(\"Ready.\"))"
+            return "ContainerSpec(\(config))"
         }
         return """
             ContainerSpec(LocalStackContainer(services: \(typeName).requiredServices).configuration())
@@ -229,115 +240,158 @@ private func generateSpec(for prop: ContainerProperty) -> String {
 }
 
 private func generateTraitImpl(properties: [ContainerProperty]) -> [DeclSyntax] {
-    var keyStartLines: [String] = []
-    var waitLines: [String] = []
-    var setupLines: [String] = []
-    var contextEntries: [String] = []
-    var outputEntries: [String] = []
-    var teardownLines: [String] = []
+    let fragments = properties.map { generatePropertyFragments(for: $0) }
 
-    for prop in properties {
-        let keyName = "_\(capitalizeFirst(prop.name))Key"
+    let keyStartLines = fragments.flatMap(\.startLines).joined(separator: "\n")
+    let waitLines = fragments.flatMap(\.waitLines).joined(separator: "\n")
+    let setupLines = fragments.flatMap(\.setupLines).joined(separator: "\n")
+    let teardownLines = fragments.flatMap(\.teardownLines).joined(separator: "\n")
 
-        keyStartLines.append("""
-                    let \(prop.name)Spec = \(keyName).spec
-                    logger.info("Starting container", metadata: ["image": "\\(\(prop.name)Spec.configuration.image)"])
-                    try await runtime.pullImage(\(prop.name)Spec.configuration.image)
-                    let \(prop.name)Container = try await runtime.startContainer(from: \(prop.name)Spec.configuration)
-            """)
-
-        waitLines.append("""
-                    try await WaitStrategyExecutor.waitUntilReady(
-                        container: \(prop.name)Container,
-                        configuration: \(prop.name)Spec.configuration,
-                        runtime: runtime
-                    )
-            """)
-
-        setupLines.append("""
-                    for setup in \(prop.name)Spec.setups {
-                        try await setup.setUp(container: \(prop.name)Container)
-                    }
-            """)
-
-        contextEntries.append(
-            "ObjectIdentifier(\(keyName).self): \(prop.name)Container")
-
-        if case .localStack(let args) = prop.kind, let typeName = prop.typeAnnotation {
-            // Fetch CF outputs after setup
-            setupLines.append("""
-                        let \(prop.name)Endpoint = try LocalStackEndpoint(container: \(prop.name)Container).awsEndpoint()
-                        let \(prop.name)Fetcher = CloudFormationSetup(templatePath: "", stackName: \"\(args.stackName)\")
-                        let \(prop.name)RawOutputs = try await \(prop.name)Fetcher.fetchOutputs(endpoint: \(prop.name)Endpoint)
-                """)
-            outputEntries.append(
-                "ObjectIdentifier(\(keyName).self): \(prop.name)RawOutputs")
-            _ = typeName  // Used by the accessor macro to construct the outputs type
-        }
-
-        teardownLines.append("""
-                    for setup in \(prop.name)Spec.setups {
-                        try? await setup.tearDown(container: \(prop.name)Container)
-                    }
-                    do {
-                        try await runtime.stopContainer(\(prop.name)Container)
-                        try await runtime.removeContainer(\(prop.name)Container)
-                    } catch {
-                        logger.warning("Failed to clean up container", metadata: ["id": "\\(\(prop.name)Container.id)", "error": "\\(error)"])
-                    }
-            """)
-    }
-
-    let contextDictEntries = contextEntries.joined(separator: ",\n                    ")
+    let contextDictEntries = fragments.map(\.contextEntry).joined(separator: ",\n                    ")
+    let outputEntries = fragments.compactMap(\.outputEntry)
     let outputDictEntries = outputEntries.isEmpty ? ":" : outputEntries.joined(separator: ",\n                    ")
 
-    let provideScope = """
-        struct _ContainerTraitImpl: SuiteTrait, TestScoping {
-            let isRecursive = true
-
-            func provideScope(
-                for test: Test,
-                testCase: Test.Case?,
-                performing execute: @Sendable () async throws -> Void
-            ) async throws {
-                guard testCase == nil else {
-                    try await execute()
-                    return
-                }
-
-                let runtime = PlatformRuntime()
-                let logger = Logger(label: "ContainerTrait")
-
-        \(keyStartLines.joined(separator: "\n"))
-        \(waitLines.joined(separator: "\n"))
-        \(setupLines.joined(separator: "\n"))
-
-                let context = ContainerTestContext(
-                    containers: [
-                        \(contextDictEntries)
-                    ],
-                    stackOutputs: [\(outputDictEntries)]
-                )
-                do {
-                    try await ContainerTestContext.$current.withValue(context) {
-                        try await execute()
-                    }
-                } catch {
-                    logger.error("Container lifecycle error", metadata: ["error": "\\(error)"])
-                    throw error
-                }
-
-        \(teardownLines.joined(separator: "\n"))
-            }
-        }
-        """
+    let provideScope = buildProvideScopeBody(
+        keyStartLines: keyStartLines,
+        waitLines: waitLines,
+        setupLines: setupLines,
+        contextDictEntries: contextDictEntries,
+        outputDictEntries: outputDictEntries,
+        teardownLines: teardownLines
+    )
 
     return [DeclSyntax(stringLiteral: provideScope)]
 }
 
-private func capitalizeFirst(_ s: String) -> String {
-    guard let first = s.first else { return s }
-    return String(first).uppercased() + s.dropFirst()
+private struct PropertyFragments {
+    var startLines: [String]
+    var waitLines: [String]
+    var setupLines: [String]
+    var contextEntry: String
+    var outputEntry: String?
+    var teardownLines: [String]
+}
+
+private func generatePropertyFragments(for prop: ContainerProperty) -> PropertyFragments {
+    let keyName = "_\(capitalizeFirst(prop.name))Key"
+
+    let startLines = [
+        """
+                let \(prop.name)Spec = \(keyName).spec
+                logger.info("Starting container", metadata: ["image": "\\(\(prop.name)Spec.configuration.image)"])
+                try await runtime.pullImage(\(prop.name)Spec.configuration.image)
+                let \(prop.name)Container = try await runtime.startContainer(from: \(prop.name)Spec.configuration)
+        """
+    ]
+
+    let waitLines = [
+        """
+                try await WaitStrategyExecutor.waitUntilReady(
+                    container: \(prop.name)Container,
+                    configuration: \(prop.name)Spec.configuration,
+                    runtime: runtime
+                )
+        """
+    ]
+
+    var setupLines = [
+        """
+                for setup in \(prop.name)Spec.setups {
+                    try await setup.setUp(container: \(prop.name)Container)
+                }
+        """
+    ]
+
+    var outputEntry: String?
+    if case .localStack(let args) = prop.kind, let typeName = prop.typeAnnotation {
+        setupLines.append(
+            """
+                    let \(prop.name)Endpoint = try LocalStackEndpoint(container: \(prop.name)Container).awsEndpoint()
+                    let \(prop.name)Fetcher = CloudFormationSetup(templatePath: "", stackName: \"\(args.stackName)\")
+                    let \(prop.name)RawOutputs = try await \(prop.name)Fetcher.fetchOutputs(endpoint: \(prop.name)Endpoint)
+            """
+        )
+        outputEntry = "ObjectIdentifier(\(keyName).self): \(prop.name)RawOutputs"
+        _ = typeName
+    }
+
+    let teardownLines = [
+        """
+                for setup in \(prop.name)Spec.setups {
+                    try? await setup.tearDown(container: \(prop.name)Container)
+                }
+                do {
+                    try await runtime.stopContainer(\(prop.name)Container)
+                    try await runtime.removeContainer(\(prop.name)Container)
+                } catch {
+                    logger.warning("Failed to clean up container", metadata: ["id": "\\(\(prop.name)Container.id)", "error": "\\(error)"])
+                }
+        """
+    ]
+
+    return PropertyFragments(
+        startLines: startLines,
+        waitLines: waitLines,
+        setupLines: setupLines,
+        contextEntry: "ObjectIdentifier(\(keyName).self): \(prop.name)Container",
+        outputEntry: outputEntry,
+        teardownLines: teardownLines
+    )
+}
+
+private func buildProvideScopeBody(
+    keyStartLines: String,
+    waitLines: String,
+    setupLines: String,
+    contextDictEntries: String,
+    outputDictEntries: String,
+    teardownLines: String
+) -> String {
+    """
+    struct _ContainerTraitImpl: SuiteTrait, TestScoping {
+        let isRecursive = true
+
+        func provideScope(
+            for test: Test,
+            testCase: Test.Case?,
+            performing execute: @Sendable () async throws -> Void
+        ) async throws {
+            guard testCase == nil else {
+                try await execute()
+                return
+            }
+
+            let runtime = PlatformRuntime()
+            let logger = Logger(label: "ContainerTrait")
+
+    \(keyStartLines)
+    \(waitLines)
+    \(setupLines)
+
+            let context = ContainerTestContext(
+                containers: [
+                    \(contextDictEntries)
+                ],
+                stackOutputs: [\(outputDictEntries)]
+            )
+            do {
+                try await ContainerTestContext.$current.withValue(context) {
+                    try await execute()
+                }
+            } catch {
+                logger.error("Container lifecycle error", metadata: ["error": "\\(error)"])
+                throw error
+            }
+
+    \(teardownLines)
+        }
+    }
+    """
+}
+
+private func capitalizeFirst(_ string: String) -> String {
+    guard let first = string.first else { return string }
+    return String(first).uppercased() + string.dropFirst()
 }
 
 // MARK: - Error Type

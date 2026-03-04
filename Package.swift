@@ -181,12 +181,14 @@ package.targets.append(
 
 #if os(macOS)
 let containerizationDep: Package.Dependency = .package(
-    url: "https://github.com/apple/containerization.git", branch: "main"
+    url: "https://github.com/apple/containerization.git",
+    branch: "main"
 )
 package.dependencies.append(containerizationDep)
 
 let containerizationProduct: Product = .library(
-    name: "ContainerizationRuntime", targets: ["ContainerizationRuntime"]
+    name: "ContainerizationRuntime",
+    targets: ["ContainerizationRuntime"]
 )
 package.products.append(containerizationProduct)
 

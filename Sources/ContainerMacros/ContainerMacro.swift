@@ -30,8 +30,8 @@ public struct ContainerMacro: AccessorMacro {
         return [getter]
     }
 
-    private static func capitalizeFirst(_ s: String) -> String {
-        guard let first = s.first else { return s }
-        return String(first).uppercased() + s.dropFirst()
+    private static func capitalizeFirst(_ string: String) -> String {
+        guard let first = string.first else { return string }
+        return String(first).uppercased() + string.dropFirst()
     }
 }

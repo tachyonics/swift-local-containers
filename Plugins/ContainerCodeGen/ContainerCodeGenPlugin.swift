@@ -19,16 +19,18 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
             let stem = templateFile.deletingPathExtension().lastPathComponent
             let outputFile = outputDir.appending(path: "\(pascalCase(stem))Outputs.swift")
 
-            commands.append(.buildCommand(
-                displayName: "Generate StackOutputs for \(templateFile.lastPathComponent)",
-                executable: tool.url,
-                arguments: [
-                    templateFile.path(percentEncoded: false),
-                    outputFile.path(percentEncoded: false)
-                ],
-                inputFiles: [templateFile],
-                outputFiles: [outputFile]
-            ))
+            commands.append(
+                .buildCommand(
+                    displayName: "Generate StackOutputs for \(templateFile.lastPathComponent)",
+                    executable: tool.url,
+                    arguments: [
+                        templateFile.path(percentEncoded: false),
+                        outputFile.path(percentEncoded: false)
+                    ],
+                    inputFiles: [templateFile],
+                    outputFiles: [outputFile]
+                )
+            )
         }
 
         return commands

@@ -50,7 +50,9 @@ public struct ContainerTestContext: Sendable {
     /// Convenience for macro-generated code that needs a non-optional context.
     public static func requireCurrent() throws -> ContainerTestContext {
         guard let ctx = current else {
-            throw ContainerError.runtimeError("No ContainerTestContext is active — are you inside a @Suite(.containers(...)) scope?")
+            throw ContainerError.runtimeError(
+                "No ContainerTestContext is active — are you inside a @Suite(.containers(...)) scope?"
+            )
         }
         return ctx
     }

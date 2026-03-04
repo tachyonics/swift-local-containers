@@ -152,7 +152,9 @@ public struct CloudFormationSetup: ContainerSetup {
         var searchStart = outputsSection.startIndex
         while let memberOpen = outputsSection.range(of: "<member>", range: searchStart..<outputsSection.endIndex),
             let memberClose = outputsSection.range(
-                of: "</member>", range: memberOpen.upperBound..<outputsSection.endIndex)
+                of: "</member>",
+                range: memberOpen.upperBound..<outputsSection.endIndex
+            )
         {
             let member = String(outputsSection[memberOpen.upperBound..<memberClose.lowerBound])
 

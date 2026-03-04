@@ -41,7 +41,10 @@ public actor SharedContainerManager {
         registerCleanupIfNeeded(runtime: runtime)
 
         let spec = key.spec
-        logger.info("Starting shared container", metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image)"])
+        logger.info(
+            "Starting shared container",
+            metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image)"]
+        )
 
         try await runtime.pullImage(spec.configuration.image)
         let container = try await runtime.startContainer(from: spec.configuration)
@@ -69,8 +72,8 @@ public actor SharedContainerManager {
     ) async throws -> ContainerTestContext {
         var resolved: [ObjectIdentifier: RunningContainer] = [:]
         for key in keys {
-            let c = try await container(for: key, runtime: runtime)
-            resolved[key.id] = c
+            let running = try await container(for: key, runtime: runtime)
+            resolved[key.id] = running
         }
         return ContainerTestContext(containers: resolved)
     }
