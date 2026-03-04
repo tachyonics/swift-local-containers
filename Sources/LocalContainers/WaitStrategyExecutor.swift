@@ -142,14 +142,14 @@ package enum WaitStrategyExecutor {
     #endif
 
     static func checkTCPPort(host: String, port: UInt16) -> Bool {
-        let fd = socket(AF_INET, sockStream, 0)
-        guard fd >= 0 else { return false }
-        defer { close(fd) }
+        let socketFd = socket(AF_INET, sockStream, 0)
+        guard socketFd >= 0 else { return false }
+        defer { close(socketFd) }
 
         // Set non-blocking so connect() returns immediately
-        let flags = fcntl(fd, F_GETFL)
+        let flags = fcntl(socketFd, F_GETFL)
         guard flags >= 0 else { return false }
-        guard fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0 else { return false }
+        guard fcntl(socketFd, F_SETFL, flags | O_NONBLOCK) >= 0 else { return false }
 
         var addr = sockaddr_in()
         addr.sin_family = sa_family_t(AF_INET)
@@ -161,7 +161,7 @@ package enum WaitStrategyExecutor {
 
         let connectResult = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
+                connect(socketFd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
 
@@ -172,7 +172,7 @@ package enum WaitStrategyExecutor {
         // EINPROGRESS means the connection is in progress — poll for completion
         guard errno == EINPROGRESS else { return false }
 
-        var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+        var pfd = pollfd(fd: socketFd, events: Int16(POLLOUT), revents: 0)
         // Wait up to 500ms for the connection to complete
         let pollResult = poll(&pfd, 1, 500)
         guard pollResult > 0 else { return false }
@@ -180,7 +180,7 @@ package enum WaitStrategyExecutor {
         // Check if the connection actually succeeded via SO_ERROR
         var socketError: Int32 = 0
         var errorLen = socklen_t(MemoryLayout<Int32>.size)
-        getsockopt(fd, SOL_SOCKET, SO_ERROR, &socketError, &errorLen)
+        getsockopt(socketFd, SOL_SOCKET, SO_ERROR, &socketError, &errorLen)
 
         return socketError == 0
     }

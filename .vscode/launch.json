@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:swift-local-containers}",
+            "name": "Debug ContainerCodeGenTool",
+            "target": "ContainerCodeGenTool",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug ContainerCodeGenTool"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:swift-local-containers}",
+            "name": "Release ContainerCodeGenTool",
+            "target": "ContainerCodeGenTool",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release ContainerCodeGenTool"
+        }
+    ]
+}

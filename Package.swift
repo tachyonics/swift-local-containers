@@ -1,5 +1,6 @@
 // swift-tools-version: 6.1
 
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -13,11 +14,14 @@ let package = Package(
         .library(name: "PlatformRuntime", targets: ["PlatformRuntime"]),
         .library(name: "LocalStack", targets: ["LocalStack"]),
         .library(name: "ContainerTestSupport", targets: ["ContainerTestSupport"]),
+        .library(name: "ContainerMacrosLib", targets: ["ContainerMacrosLib"]),
+        .plugin(name: "ContainerCodeGen", targets: ["ContainerCodeGen"])
     ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0")
     ],
     targets: [
         // MARK: - Core
@@ -36,7 +40,7 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 
@@ -46,7 +50,7 @@ let package = Package(
             name: "PlatformRuntime",
             dependencies: [
                 "LocalContainers",
-                "DockerRuntime",
+                "DockerRuntime"
             ]
         ),
 
@@ -57,7 +61,7 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 
@@ -68,8 +72,20 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 "PlatformRuntime",
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
+        ),
+
+        // MARK: - Build Plugin
+
+        .plugin(
+            name: "ContainerCodeGen",
+            capability: .buildTool(),
+            dependencies: ["ContainerCodeGenTool"]
+        ),
+
+        .executableTarget(
+            name: "ContainerCodeGenTool"
         ),
 
         // MARK: - Tests
@@ -78,7 +94,7 @@ let package = Package(
             name: "LocalContainersTests",
             dependencies: [
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -86,7 +102,7 @@ let package = Package(
             name: "DockerRuntimeTests",
             dependencies: [
                 "DockerRuntime",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -100,7 +116,7 @@ let package = Package(
             dependencies: [
                 "ContainerTestSupport",
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -109,7 +125,7 @@ let package = Package(
             dependencies: [
                 "PlatformRuntime",
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -120,37 +136,75 @@ let package = Package(
                 "LocalStack",
                 "DockerRuntime",
                 "PlatformRuntime",
-            ]
+                .product(name: "AsyncHTTPClient", package: "async-http-client")
+            ],
+            exclude: ["Resources"]
         ),
+
+        .testTarget(
+            name: "ContainerMacrosTests",
+            dependencies: [
+                "ContainerMacros",
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
+            ]
+        )
     ]
+)
+
+// MARK: - Macros (appended to avoid type inference issues with .macro in array literals)
+
+let macroTarget: Target = .macro(
+    name: "ContainerMacros",
+    dependencies: [
+        .product(name: "SwiftSyntax", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+    ]
+)
+package.targets.append(macroTarget)
+
+package.targets.append(
+    .target(
+        name: "ContainerMacrosLib",
+        dependencies: [
+            "ContainerMacros",
+            "LocalContainers",
+            "ContainerTestSupport",
+            "LocalStack"
+        ]
+    )
 )
 
 // MARK: - macOS-only: Apple Containerization backend
 
 #if os(macOS)
-package.dependencies.append(
-    .package(url: "https://github.com/apple/containerization.git", branch: "main")
+let containerizationDep: Package.Dependency = .package(
+    url: "https://github.com/apple/containerization.git",
+    branch: "main"
 )
+package.dependencies.append(containerizationDep)
 
-package.products.append(
-    .library(name: "ContainerizationRuntime", targets: ["ContainerizationRuntime"])
+let containerizationProduct: Product = .library(
+    name: "ContainerizationRuntime",
+    targets: ["ContainerizationRuntime"]
 )
+package.products.append(containerizationProduct)
 
-package.targets.append(
-    .target(
-        name: "ContainerizationRuntime",
-        dependencies: [
-            "LocalContainers",
-            .product(name: "Containerization", package: "containerization"),
-            .product(name: "Logging", package: "swift-log"),
-        ]
-    )
+let containerizationTarget: Target = .target(
+    name: "ContainerizationRuntime",
+    dependencies: [
+        "LocalContainers",
+        .product(name: "Containerization", package: "containerization"),
+        .product(name: "Logging", package: "swift-log")
+    ]
 )
+package.targets.append(containerizationTarget)
 
 // Add ContainerizationRuntime as a dependency of PlatformRuntime on macOS
 if let platformIdx = package.targets.firstIndex(where: { $0.name == "PlatformRuntime" }) {
-    package.targets[platformIdx].dependencies.append(
-        .targetItem(name: "ContainerizationRuntime", condition: nil)
-    )
+    let dep: Target.Dependency = .target(name: "ContainerizationRuntime")
+    package.targets[platformIdx].dependencies.append(dep)
 }
 #endif

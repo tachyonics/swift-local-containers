@@ -26,16 +26,25 @@ public actor SharedContainerManager {
         for key: K.Type,
         runtime: any ContainerRuntime = PlatformRuntime()
     ) async throws -> RunningContainer {
-        let id = ObjectIdentifier(key)
+        try await container(for: ErasedContainerKey(key), runtime: runtime)
+    }
 
-        if let existing = containers[id] {
+    /// Get or start a container for the given erased key.
+    public func container(
+        for key: ErasedContainerKey,
+        runtime: any ContainerRuntime = PlatformRuntime()
+    ) async throws -> RunningContainer {
+        if let existing = containers[key.id] {
             return existing
         }
 
         registerCleanupIfNeeded(runtime: runtime)
 
         let spec = key.spec
-        logger.info("Starting shared container", metadata: ["key": "\(key)", "image": "\(spec.configuration.image)"])
+        logger.info(
+            "Starting shared container",
+            metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image)"]
+        )
 
         try await runtime.pullImage(spec.configuration.image)
         let container = try await runtime.startContainer(from: spec.configuration)
@@ -52,20 +61,19 @@ public actor SharedContainerManager {
             try await setup.setUp(container: container)
         }
 
-        containers[id] = container
+        containers[key.id] = container
         return container
     }
 
     /// Resolve containers for multiple keys, returning a ``ContainerTestContext``.
     public func context(
-        for keys: [any ContainerKey.Type],
+        for keys: [ErasedContainerKey],
         runtime: any ContainerRuntime = PlatformRuntime()
     ) async throws -> ContainerTestContext {
         var resolved: [ObjectIdentifier: RunningContainer] = [:]
         for key in keys {
-            let id = ObjectIdentifier(key)
-            let container = try await container(for: key, runtime: runtime)
-            resolved[id] = container
+            let running = try await container(for: key, runtime: runtime)
+            resolved[key.id] = running
         }
         return ContainerTestContext(containers: resolved)
     }
@@ -83,7 +91,7 @@ public actor SharedContainerManager {
                     "Failed to clean up container",
                     metadata: [
                         "id": "\(container.id)",
-                        "error": "\(error)",
+                        "error": "\(error)"
                     ]
                 )
             }

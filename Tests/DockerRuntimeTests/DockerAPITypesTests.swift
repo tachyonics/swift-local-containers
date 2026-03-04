@@ -67,21 +67,21 @@ struct DockerAPITypesTests {
 
     @Test("DockerPortResolver resolves ports from inspect response")
     func portResolution() {
-        let networkSettings = InspectContainerResponse.NetworkSettings(
+        let networkSettings = InspectNetworkSettings(
             ports: [
                 "8080/tcp": [
-                    InspectContainerResponse.NetworkSettings.PortMapping(
+                    InspectPortMapping(
                         hostIp: "0.0.0.0",
                         hostPort: "32768"
                     )
                 ],
                 "53/udp": [
-                    InspectContainerResponse.NetworkSettings.PortMapping(
+                    InspectPortMapping(
                         hostIp: "0.0.0.0",
                         hostPort: "32769"
                     )
                 ],
-                "9090/tcp": nil,
+                "9090/tcp": nil
             ]
         )
 

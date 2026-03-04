@@ -92,7 +92,7 @@ struct ContainerTestContextTests {
     func lookupByKey() throws {
         let ctx = ContainerTestContext(containers: [
             ObjectIdentifier(FakeDB.self): Self.dbContainer,
-            ObjectIdentifier(FakeCache.self): Self.cacheContainer,
+            ObjectIdentifier(FakeCache.self): Self.cacheContainer
         ])
 
         let db = try ctx[FakeDB.self]

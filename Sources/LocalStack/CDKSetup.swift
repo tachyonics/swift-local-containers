@@ -48,7 +48,7 @@ public struct CDKSetup: ContainerSetup {
             metadata: [
                 "stack": "\(stackName)",
                 "endpoint": "\(endpoint)",
-                "cdkApp": "\(cdkAppPath)",
+                "cdkApp": "\(cdkAppPath)"
             ]
         )
 
@@ -106,14 +106,38 @@ public struct CDKSetup: ContainerSetup {
     }
 
     @discardableResult
-    private func runShell(
+    internal func runShell(
         _ command: String,
         environment: [String: String] = [:]
     ) async throws -> String {
-        // TODO: Use Foundation.Process to run the command
-        throw ContainerError.setupFailed(
-            step: "CDKSetup",
-            reason: "Shell execution not yet implemented"
-        )
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", command]
+
+        var env = ProcessInfo.processInfo.environment
+        for (key, value) in environment {
+            env[key] = value
+        }
+        process.environment = env
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+
+        guard process.terminationStatus == 0 else {
+            throw ContainerError.setupFailed(
+                step: "CDKSetup",
+                reason:
+                    "Command failed (exit code \(process.terminationStatus)): \(output)"
+            )
+        }
+
+        return output
     }
 }
