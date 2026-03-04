@@ -208,8 +208,8 @@ public struct CloudFormationSetup: ContainerSetup {
 
 // MARK: - Form Encoding
 
-private extension CharacterSet {
-    static let cloudFormationFormAllowed: CharacterSet = {
+extension CharacterSet {
+    fileprivate static let cloudFormationFormAllowed: CharacterSet = {
         var cs = CharacterSet.alphanumerics
         cs.insert(charactersIn: "-_.~")
         return cs
