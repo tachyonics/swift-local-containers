@@ -121,6 +121,9 @@ let package = Package(
                 "DockerRuntime",
                 "PlatformRuntime",
                 .product(name: "AsyncHTTPClient", package: "async-http-client")
+            ],
+            resources: [
+                .copy("Resources")
             ]
         )
     ]
