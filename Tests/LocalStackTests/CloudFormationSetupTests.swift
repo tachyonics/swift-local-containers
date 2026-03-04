@@ -50,7 +50,8 @@ struct CloudFormationSetupTests {
             </DescribeStacksResponse>
             """
 
-        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
         #expect(outputs.count == 2)
         #expect(outputs["BucketName"] == "my-bucket")
         #expect(outputs["QueueUrl"] == "http://localhost:4566/queue/test")
@@ -67,7 +68,8 @@ struct CloudFormationSetupTests {
             </Outputs>
             """
 
-        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
         #expect(outputs.count == 1)
         #expect(outputs["TableName"] == "users-table")
     }
@@ -76,7 +78,8 @@ struct CloudFormationSetupTests {
     func extractOutputsMissing() {
         let xml = "<DescribeStacksResponse><DescribeStacksResult></DescribeStacksResult></DescribeStacksResponse>"
 
-        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
         #expect(outputs.isEmpty)
     }
 
@@ -84,7 +87,8 @@ struct CloudFormationSetupTests {
     func extractOutputsEmpty() {
         let xml = "<Outputs></Outputs>"
 
-        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        let setup = CloudFormationSetup(templatePath: "/tmp/template.json")
+        let outputs = setup.extractOutputs(from: xml)
         #expect(outputs.isEmpty)
     }
 }

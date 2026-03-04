@@ -64,7 +64,7 @@ public struct CloudFormationSetup: ContainerSetup {
     /// Extracts output key-value pairs from a DescribeStacks XML response.
     ///
     /// Parses `<Outputs><member><OutputKey>…</OutputKey><OutputValue>…</OutputValue></member>…</Outputs>`.
-    internal static func extractOutputs(from xml: String) -> [String: String] {
+    internal func extractOutputs(from xml: String) -> [String: String] {
         var outputs: [String: String] = [:]
 
         guard let openRange = xml.range(of: "<Outputs>"),
@@ -81,8 +81,8 @@ public struct CloudFormationSetup: ContainerSetup {
         {
             let member = String(section[memberOpen.upperBound..<memberClose.lowerBound])
 
-            if let key = Self.extractTag("OutputKey", from: member),
-                let value = Self.extractTag("OutputValue", from: member)
+            if let key = extractTag("OutputKey", from: member),
+                let value = extractTag("OutputValue", from: member)
             {
                 outputs[key] = value
             }
@@ -93,7 +93,7 @@ public struct CloudFormationSetup: ContainerSetup {
         return outputs
     }
 
-    private static func extractTag(_ tag: String, from xml: String) -> String? {
+    private func extractTag(_ tag: String, from xml: String) -> String? {
         let open = "<\(tag)>"
         let close = "</\(tag)>"
         guard let openRange = xml.range(of: open),
