@@ -5,6 +5,9 @@ import Testing
 
 /// A test trait that manages container lifecycles for a test suite.
 ///
+/// Generic over the runtime to avoid storing `any ContainerRuntime` as an
+/// existential.
+///
 /// Apply to a `@Suite` to start containers before the suite's tests run
 /// and stop them after all tests complete:
 ///
@@ -17,10 +20,10 @@ import Testing
 ///     }
 /// }
 /// ```
-public struct ContainerTrait: SuiteTrait, TestScoping {
+public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
     public let isRecursive = true
-    let keys: [any ContainerKey.Type]
-    let runtime: any ContainerRuntime
+    let keys: [ErasedContainerKey]
+    let runtime: R
 
     public func provideScope(
         for test: Test,
@@ -56,7 +59,7 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
                     try await setup.setUp(container: container)
                 }
 
-                started[ObjectIdentifier(key)] = container
+                started[key.id] = container
             }
 
             // Execute tests with the context available via @TaskLocal
@@ -71,8 +74,7 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
 
         // Teardown — run setup teardowns, then stop and remove containers
         for key in keys {
-            let id = ObjectIdentifier(key)
-            guard let container = started[id] else { continue }
+            guard let container = started[key.id] else { continue }
 
             for setup in key.spec.setups {
                 try? await setup.tearDown(container: container)
@@ -95,10 +97,12 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
 }
 
 /// A test trait that uses ``SharedContainerManager`` for process-wide container sharing.
-public struct SharedContainerTrait: SuiteTrait, TestScoping {
+///
+/// Generic over the runtime for the same reason as ``ContainerTrait``.
+public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
     public let isRecursive = true
-    let keys: [any ContainerKey.Type]
-    let runtime: any ContainerRuntime
+    let keys: [ErasedContainerKey]
+    let runtime: R
 
     public func provideScope(
         for test: Test,
@@ -122,24 +126,22 @@ public struct SharedContainerTrait: SuiteTrait, TestScoping {
 
 // MARK: - Trait Factory Methods
 
-extension Trait where Self == ContainerTrait {
+extension SuiteTrait {
     /// Creates a suite trait that starts the specified containers for the duration
     /// of the suite. Containers are stopped and removed after all tests complete.
     public static func containers(
         _ keys: any ContainerKey.Type...,
-        runtime: any ContainerRuntime = PlatformRuntime()
-    ) -> ContainerTrait {
-        ContainerTrait(keys: keys, runtime: runtime)
+        runtime: some ContainerRuntime = PlatformRuntime()
+    ) -> ContainerTrait<some ContainerRuntime> {
+        ContainerTrait(keys: keys.map { ErasedContainerKey($0) }, runtime: runtime)
     }
-}
 
-extension Trait where Self == SharedContainerTrait {
     /// Creates a suite trait that uses shared (process-wide) containers.
     /// The first suite to use a container starts it; subsequent suites reuse it.
     public static func sharedContainers(
         _ keys: any ContainerKey.Type...,
-        runtime: any ContainerRuntime = PlatformRuntime()
-    ) -> SharedContainerTrait {
-        SharedContainerTrait(keys: keys, runtime: runtime)
+        runtime: some ContainerRuntime = PlatformRuntime()
+    ) -> SharedContainerTrait<some ContainerRuntime> {
+        SharedContainerTrait(keys: keys.map { ErasedContainerKey($0) }, runtime: runtime)
     }
 }

@@ -56,18 +56,51 @@ public actor SharedContainerManager {
         return container
     }
 
-    /// Resolve containers for multiple keys, returning a ``ContainerTestContext``.
+    /// Resolve containers for multiple erased keys, returning a ``ContainerTestContext``.
     public func context(
-        for keys: [any ContainerKey.Type],
-        runtime: any ContainerRuntime = PlatformRuntime()
+        for keys: [ErasedContainerKey],
+        runtime: some ContainerRuntime = PlatformRuntime()
     ) async throws -> ContainerTestContext {
         var resolved: [ObjectIdentifier: RunningContainer] = [:]
         for key in keys {
-            let id = ObjectIdentifier(key)
-            let container = try await container(for: key, runtime: runtime)
-            resolved[id] = container
+            let running = try await container(for: key, runtime: runtime)
+            resolved[key.id] = running
         }
         return ContainerTestContext(containers: resolved)
+    }
+
+    /// Get or start a container for the given erased key.
+    private func container(
+        for key: ErasedContainerKey,
+        runtime: some ContainerRuntime
+    ) async throws -> RunningContainer {
+        if let existing = containers[key.id] {
+            return existing
+        }
+
+        registerCleanupIfNeeded(runtime: runtime)
+
+        let spec = key.spec
+        logger.info(
+            "Starting shared container",
+            metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image)"]
+        )
+
+        try await runtime.pullImage(spec.configuration.image)
+        let container = try await runtime.startContainer(from: spec.configuration)
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: spec.configuration,
+            runtime: runtime
+        )
+
+        for setup in spec.setups {
+            try await setup.setUp(container: container)
+        }
+
+        containers[key.id] = container
+        return container
     }
 
     /// Stop and remove all shared containers.
