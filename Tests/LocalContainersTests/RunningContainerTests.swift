@@ -12,7 +12,7 @@ struct RunningContainerTests {
             image: "nginx",
             ports: [
                 ResolvedPortMapping(containerPort: 80, hostPort: 32768),
-                ResolvedPortMapping(containerPort: 443, hostPort: 32769),
+                ResolvedPortMapping(containerPort: 443, hostPort: 32769)
             ]
         )
 

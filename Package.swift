@@ -12,12 +12,12 @@ let package = Package(
         .library(name: "DockerRuntime", targets: ["DockerRuntime"]),
         .library(name: "PlatformRuntime", targets: ["PlatformRuntime"]),
         .library(name: "LocalStack", targets: ["LocalStack"]),
-        .library(name: "ContainerTestSupport", targets: ["ContainerTestSupport"]),
+        .library(name: "ContainerTestSupport", targets: ["ContainerTestSupport"])
     ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
-        .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
+        .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1")
     ],
     targets: [
         // MARK: - Core
@@ -36,7 +36,7 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 
@@ -46,7 +46,7 @@ let package = Package(
             name: "PlatformRuntime",
             dependencies: [
                 "LocalContainers",
-                "DockerRuntime",
+                "DockerRuntime"
             ]
         ),
 
@@ -57,7 +57,7 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 
@@ -68,7 +68,7 @@ let package = Package(
             dependencies: [
                 "LocalContainers",
                 "PlatformRuntime",
-                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Logging", package: "swift-log")
             ]
         ),
 
@@ -78,7 +78,7 @@ let package = Package(
             name: "LocalContainersTests",
             dependencies: [
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -86,7 +86,7 @@ let package = Package(
             name: "DockerRuntimeTests",
             dependencies: [
                 "DockerRuntime",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -100,7 +100,7 @@ let package = Package(
             dependencies: [
                 "ContainerTestSupport",
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -109,7 +109,7 @@ let package = Package(
             dependencies: [
                 "PlatformRuntime",
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
+                .product(name: "Smockable", package: "smockable")
             ]
         ),
 
@@ -120,9 +120,9 @@ let package = Package(
                 "LocalStack",
                 "DockerRuntime",
                 "PlatformRuntime",
-                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "AsyncHTTPClient", package: "async-http-client")
             ]
-        ),
+        )
     ]
 )
 
@@ -143,7 +143,7 @@ package.targets.append(
         dependencies: [
             "LocalContainers",
             .product(name: "Containerization", package: "containerization"),
-            .product(name: "Logging", package: "swift-log"),
+            .product(name: "Logging", package: "swift-log")
         ]
     )
 )

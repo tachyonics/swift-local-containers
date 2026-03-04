@@ -81,7 +81,7 @@ struct DockerAPITypesTests {
                         hostPort: "32769"
                     )
                 ],
-                "9090/tcp": nil,
+                "9090/tcp": nil
             ]
         )
 

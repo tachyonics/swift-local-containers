@@ -223,7 +223,8 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
                 if url.contains("/containers/") {
                     let components = url.split(separator: "/")
                     if let containerIdx = components.firstIndex(of: "containers"),
-                        containerIdx + 1 < components.endIndex {
+                        containerIdx + 1 < components.endIndex
+                    {
                         let id = String(components[containerIdx + 1])
                         throw ContainerError.containerNotFound(id: id)
                     }

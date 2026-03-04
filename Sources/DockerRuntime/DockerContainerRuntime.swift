@@ -111,7 +111,8 @@ public struct DockerContainerRuntime: ContainerRuntime {
     /// current container. In that case, the Docker bridge gateway IP is used.
     func resolveHost(gateway: String?) -> String {
         if FileManager.default.fileExists(atPath: "/.dockerenv"),
-            let gateway, !gateway.isEmpty {
+            let gateway, !gateway.isEmpty
+        {
             return gateway
         }
         return "127.0.0.1"

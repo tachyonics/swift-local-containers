@@ -53,7 +53,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             image: "nginx",
             ports: [
                 PortMapping(containerPort: 80, hostPort: 8080),
-                PortMapping(containerPort: 443),
+                PortMapping(containerPort: 443)
             ]
         )
         let request = runtime.buildCreateRequest(from: config)
@@ -88,7 +88,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             image: "app",
             volumes: [
                 VolumeMount(hostPath: "/data", containerPath: "/var/data"),
-                VolumeMount(hostPath: "/config", containerPath: "/etc/config", readOnly: true),
+                VolumeMount(hostPath: "/config", containerPath: "/etc/config", readOnly: true)
             ]
         )
         let request = runtime.buildCreateRequest(from: config)
@@ -237,7 +237,7 @@ struct DockerContainerRuntimeBuildRequestTests {
             gateway: nil,
             networks: [
                 "none": .init(gateway: ""),
-                "bridge": .init(gateway: "172.17.0.1"),
+                "bridge": .init(gateway: "172.17.0.1")
             ]
         )
         #expect(runtime.extractGateway(from: settings) == "172.17.0.1")
