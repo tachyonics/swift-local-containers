@@ -122,9 +122,7 @@ let package = Package(
                 "PlatformRuntime",
                 .product(name: "AsyncHTTPClient", package: "async-http-client")
             ],
-            resources: [
-                .copy("Resources")
-            ]
+            exclude: ["Resources"]
         )
     ]
 )

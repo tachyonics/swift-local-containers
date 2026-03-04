@@ -11,7 +11,11 @@ import Testing
 // MARK: - Shared template path
 
 private let s3BucketTemplatePath: String = {
-    Bundle.module.path(forResource: "s3-bucket-template", ofType: "json", inDirectory: "Resources")!
+    URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .appendingPathComponent("Resources")
+        .appendingPathComponent("s3-bucket-template.json")
+        .path
 }()
 
 // MARK: - ContainerTrait-based CloudFormation test
