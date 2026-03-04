@@ -25,7 +25,10 @@ struct LocalStackIntegrationTests {
 
     // MARK: - CloudFormation + S3
 
-    @Test("CloudFormation deploys S3 bucket and objects can be stored and retrieved")
+    @Test(
+        "CloudFormation deploys S3 bucket and objects can be stored and retrieved",
+        .enabled(if: dockerAvailable, "Docker is required")
+    )
     func cloudFormationS3() async throws {
         let runtime = DockerContainerRuntime()
         let lsConfig = LocalStackContainer(
@@ -108,7 +111,11 @@ struct LocalStackIntegrationTests {
 
     // MARK: - CDK + S3
 
-    @Test("CDK deploys S3 bucket via synth and CloudFormation")
+    @Test(
+        "CDK deploys S3 bucket via synth and CloudFormation",
+        .enabled(if: dockerAvailable, "Docker is required"),
+        .enabled(if: npmAvailable, "npm is required")
+    )
     func cdkS3() async throws {
         let runtime = DockerContainerRuntime()
         let lsConfig = LocalStackContainer(
