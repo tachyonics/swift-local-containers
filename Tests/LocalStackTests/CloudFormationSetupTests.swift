@@ -137,4 +137,77 @@ struct CloudFormationSetupTests {
 
         #expect(CloudFormationSetup.extractStackStatus(from: xml) == "UNKNOWN")
     }
+
+    // MARK: - extractOutputs
+
+    @Test("Extracts multiple outputs from DescribeStacks XML")
+    func extractOutputsMultiple() {
+        let xml = """
+            <DescribeStacksResponse>
+              <DescribeStacksResult>
+                <Stacks>
+                  <member>
+                    <Outputs>
+                      <member>
+                        <OutputKey>BucketName</OutputKey>
+                        <OutputValue>my-bucket</OutputValue>
+                      </member>
+                      <member>
+                        <OutputKey>QueueUrl</OutputKey>
+                        <OutputValue>http://localhost:4566/queue/test</OutputValue>
+                      </member>
+                    </Outputs>
+                  </member>
+                </Stacks>
+              </DescribeStacksResult>
+            </DescribeStacksResponse>
+            """
+
+        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        #expect(outputs.count == 2)
+        #expect(outputs["BucketName"] == "my-bucket")
+        #expect(outputs["QueueUrl"] == "http://localhost:4566/queue/test")
+    }
+
+    @Test("Extracts single output from XML")
+    func extractOutputsSingle() {
+        let xml = """
+            <Outputs>
+              <member>
+                <OutputKey>TableName</OutputKey>
+                <OutputValue>users-table</OutputValue>
+              </member>
+            </Outputs>
+            """
+
+        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        #expect(outputs.count == 1)
+        #expect(outputs["TableName"] == "users-table")
+    }
+
+    @Test("Returns empty dictionary when Outputs section is missing")
+    func extractOutputsMissing() {
+        let xml = """
+            <DescribeStacksResponse>
+              <DescribeStacksResult>
+                <Stacks>
+                  <member>
+                    <StackStatus>CREATE_COMPLETE</StackStatus>
+                  </member>
+                </Stacks>
+              </DescribeStacksResult>
+            </DescribeStacksResponse>
+            """
+
+        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        #expect(outputs.isEmpty)
+    }
+
+    @Test("Returns empty dictionary for empty Outputs section")
+    func extractOutputsEmpty() {
+        let xml = "<Outputs></Outputs>"
+
+        let outputs = CloudFormationSetup.extractOutputs(from: xml)
+        #expect(outputs.isEmpty)
+    }
 }

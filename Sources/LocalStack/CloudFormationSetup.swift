@@ -110,6 +110,64 @@ public struct CloudFormationSetup: ContainerSetup {
         return status.isEmpty ? "UNKNOWN" : status
     }
 
+    // MARK: - Stack Outputs
+
+    /// Fetches the outputs of the deployed stack from CloudFormation.
+    ///
+    /// Calls `DescribeStacks` and parses the `<Outputs>` section.
+    /// Should be called after the stack reaches `CREATE_COMPLETE`.
+    public func fetchOutputs(endpoint: String) async throws -> [String: String] {
+        let body = "Action=\(formEncode("DescribeStacks"))&StackName=\(formEncode(stackName))"
+
+        var request = HTTPClientRequest(url: endpoint)
+        request.method = .POST
+        request.headers.add(name: "Content-Type", value: "application/x-www-form-urlencoded")
+        request.body = .bytes(ByteBuffer(string: body))
+
+        let response = try await HTTPClient.shared.execute(request, timeout: .seconds(30))
+        let responseBody = try await response.body.collect(upTo: Self.maxResponseSize)
+        let xml = String(buffer: responseBody)
+
+        return Self.extractOutputs(from: xml)
+    }
+
+    /// Extracts output key-value pairs from a DescribeStacks XML response.
+    ///
+    /// Parses `<Outputs><member><OutputKey>...</OutputKey><OutputValue>...</OutputValue></member>...</Outputs>`.
+    internal static func extractOutputs(from xml: String) -> [String: String] {
+        var outputs: [String: String] = [:]
+
+        // Find the <Outputs>...</Outputs> section
+        let outputsOpen = "<Outputs>"
+        let outputsClose = "</Outputs>"
+        guard let openRange = xml.range(of: outputsOpen),
+            let closeRange = xml.range(of: outputsClose, range: openRange.upperBound..<xml.endIndex)
+        else {
+            return outputs
+        }
+
+        let outputsSection = String(xml[openRange.upperBound..<closeRange.lowerBound])
+
+        // Parse each <member> block
+        var searchStart = outputsSection.startIndex
+        while let memberOpen = outputsSection.range(of: "<member>", range: searchStart..<outputsSection.endIndex),
+            let memberClose = outputsSection.range(
+                of: "</member>", range: memberOpen.upperBound..<outputsSection.endIndex)
+        {
+            let member = String(outputsSection[memberOpen.upperBound..<memberClose.lowerBound])
+
+            if let key = extractTag("OutputKey", from: member),
+                let value = extractTag("OutputValue", from: member)
+            {
+                outputs[key] = value
+            }
+
+            searchStart = memberClose.upperBound
+        }
+
+        return outputs
+    }
+
     // MARK: - Private
 
     private func createStack(endpoint: String, templateBody: String) async throws {
@@ -218,4 +276,16 @@ extension CharacterSet {
 
 private func formEncode(_ value: String) -> String {
     value.addingPercentEncoding(withAllowedCharacters: .cloudFormationFormAllowed) ?? value
+}
+
+private func extractTag(_ tag: String, from xml: String) -> String? {
+    let open = "<\(tag)>"
+    let close = "</\(tag)>"
+    guard let openRange = xml.range(of: open),
+        let closeRange = xml.range(of: close, range: openRange.upperBound..<xml.endIndex)
+    else {
+        return nil
+    }
+    let value = String(xml[openRange.upperBound..<closeRange.lowerBound])
+    return value.isEmpty ? nil : value
 }

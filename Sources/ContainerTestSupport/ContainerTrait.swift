@@ -19,7 +19,7 @@ import Testing
 /// ```
 public struct ContainerTrait: SuiteTrait, TestScoping {
     public let isRecursive = true
-    let keys: [any ContainerKey.Type]
+    let keys: [ErasedContainerKey]
     let runtime: any ContainerRuntime
 
     public func provideScope(
@@ -56,7 +56,7 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
                     try await setup.setUp(container: container)
                 }
 
-                started[ObjectIdentifier(key)] = container
+                started[key.id] = container
             }
 
             // Execute tests with the context available via @TaskLocal
@@ -71,8 +71,7 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
 
         // Teardown — run setup teardowns, then stop and remove containers
         for key in keys {
-            let id = ObjectIdentifier(key)
-            guard let container = started[id] else { continue }
+            guard let container = started[key.id] else { continue }
 
             for setup in key.spec.setups {
                 try? await setup.tearDown(container: container)
@@ -97,7 +96,7 @@ public struct ContainerTrait: SuiteTrait, TestScoping {
 /// A test trait that uses ``SharedContainerManager`` for process-wide container sharing.
 public struct SharedContainerTrait: SuiteTrait, TestScoping {
     public let isRecursive = true
-    let keys: [any ContainerKey.Type]
+    let keys: [ErasedContainerKey]
     let runtime: any ContainerRuntime
 
     public func provideScope(
@@ -129,7 +128,7 @@ extension Trait where Self == ContainerTrait {
         _ keys: any ContainerKey.Type...,
         runtime: any ContainerRuntime = PlatformRuntime()
     ) -> ContainerTrait {
-        ContainerTrait(keys: keys, runtime: runtime)
+        ContainerTrait(keys: keys.map { ErasedContainerKey($0) }, runtime: runtime)
     }
 }
 
@@ -140,6 +139,6 @@ extension Trait where Self == SharedContainerTrait {
         _ keys: any ContainerKey.Type...,
         runtime: any ContainerRuntime = PlatformRuntime()
     ) -> SharedContainerTrait {
-        SharedContainerTrait(keys: keys, runtime: runtime)
+        SharedContainerTrait(keys: keys.map { ErasedContainerKey($0) }, runtime: runtime)
     }
 }
