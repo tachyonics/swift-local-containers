@@ -4,7 +4,7 @@ import Foundation
 struct ContainerCodeGenTool {
     static func main() throws {
         guard CommandLine.arguments.count == 3 else {
-            fputs("Usage: ContainerCodeGenTool <template.json> <output.swift>\n", stderr)
+            writeStderr("Usage: ContainerCodeGenTool <template.json> <output.swift>\n")
             exit(1)
         }
 
@@ -13,14 +13,14 @@ struct ContainerCodeGenTool {
 
         let data = try Data(contentsOf: URL(fileURLWithPath: templatePath))
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            fputs("Error: Template is not a JSON object\n", stderr)
+            writeStderr("Error: Template is not a JSON object\n")
             exit(1)
         }
 
         // Verify this is a CloudFormation template
         guard json["AWSTemplateFormatVersion"] != nil else {
             // Not a CF template — skip silently (the plugin may pass non-template JSON)
-            fputs("Skipping \(templatePath): not a CloudFormation template\n", stderr)
+            writeStderr("Skipping \(templatePath): not a CloudFormation template\n")
             exit(0)
         }
 
@@ -169,4 +169,8 @@ private func camelCase(_ string: String) -> String {
     guard !string.isEmpty else { return string }
     let first = string.prefix(1).lowercased()
     return first + string.dropFirst()
+}
+
+private func writeStderr(_ message: String) {
+    FileHandle.standardError.write(Data(message.utf8))
 }
