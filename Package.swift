@@ -20,6 +20,16 @@ let package = Package(
         .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
     ],
     targets: [
+        // MARK: - Build Plugins
+
+        .plugin(
+            name: "ContainerCodeGen",
+            capability: .buildTool(),
+            dependencies: ["ContainerCodeGenTool"]
+        ),
+
+        .executableTarget(name: "ContainerCodeGenTool"),
+
         // MARK: - Core
 
         .target(
@@ -111,6 +121,11 @@ let package = Package(
                 "LocalContainers",
                 .product(name: "Smockable", package: "smockable"),
             ]
+        ),
+
+        .testTarget(
+            name: "ContainerCodeGenToolTests",
+            dependencies: []
         ),
 
         .testTarget(
