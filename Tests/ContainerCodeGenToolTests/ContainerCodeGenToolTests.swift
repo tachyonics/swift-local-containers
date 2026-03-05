@@ -4,27 +4,20 @@ import Testing
 @Suite("ContainerCodeGenTool")
 struct ContainerCodeGenToolTests {
     private func toolURL() throws -> URL {
-        // Find the products directory via the .xctest bundle
-        let productsDir = Bundle.allBundles
-            .first { $0.bundlePath.hasSuffix(".xctest") }
-            .map { $0.bundleURL.deletingLastPathComponent() }
+        #if os(Linux)
+        let toolPath = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
+            .deletingLastPathComponent()
+            .appending(path: "ContainerCodeGenTool")
+        #else
+        let toolPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: ".build/debug/ContainerCodeGenTool")
+        #endif
 
-        var candidates: [URL] = []
-        if let productsDir {
-            candidates.append(productsDir.appending(path: "ContainerCodeGenTool"))
-        }
-        // Fallback: check the SwiftPM build directory relative to the package
-        candidates.append(
-            URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()  // Tests/ContainerCodeGenToolTests
-                .deletingLastPathComponent()  // Tests
-                .deletingLastPathComponent()  // package root
-                .appending(path: ".build/debug/ContainerCodeGenTool")
-        )
-
-        guard let toolPath = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) })
-        else {
-            throw ToolError.toolNotFound(searched: candidates.map(\.path))
+        guard FileManager.default.isExecutableFile(atPath: toolPath.path) else {
+            throw ToolError.toolNotFound(searched: [toolPath.path])
         }
         return toolPath
     }
