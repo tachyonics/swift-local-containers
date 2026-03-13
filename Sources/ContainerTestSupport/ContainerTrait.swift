@@ -25,6 +25,11 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
     let keys: [ErasedContainerKey]
     let runtime: R
 
+    public init(keys: [ErasedContainerKey], runtime: R) {
+        self.keys = keys
+        self.runtime = runtime
+    }
+
     public func provideScope(
         for test: Test,
         testCase: Test.Case?,
@@ -38,6 +43,8 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
 
         let logger = Logger(label: "ContainerTrait")
         var started: [ObjectIdentifier: RunningContainer] = [:]
+        var stackOutputs: [ObjectIdentifier: [String: String]] = [:]
+        var typedOutputs: [ObjectIdentifier: any Sendable] = [:]
 
         do {
             // Start all containers
@@ -54,16 +61,31 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
                     runtime: runtime
                 )
 
-                // Run setup steps
+                // Run setup steps and collect outputs
                 for setup in spec.setups {
                     try await setup.setUp(container: container)
+
+                    if let outputSetup = setup as? OutputProducingSetup {
+                        let rawOutputs = try await outputSetup.fetchOutputs(
+                            from: container
+                        )
+                        stackOutputs[key.id] = rawOutputs
+
+                        if let constructor = key.outputConstructor {
+                            typedOutputs[key.id] = try constructor(rawOutputs)
+                        }
+                    }
                 }
 
                 started[key.id] = container
             }
 
             // Execute tests with the context available via @TaskLocal
-            let context = ContainerTestContext(containers: started)
+            let context = ContainerTestContext(
+                containers: started,
+                stackOutputs: stackOutputs,
+                typedOutputs: typedOutputs
+            )
             try await ContainerTestContext.$current.withValue(context) {
                 try await execute()
             }
@@ -103,6 +125,11 @@ public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping
     public let isRecursive = true
     let keys: [ErasedContainerKey]
     let runtime: R
+
+    public init(keys: [ErasedContainerKey], runtime: R) {
+        self.keys = keys
+        self.runtime = runtime
+    }
 
     public func provideScope(
         for test: Test,

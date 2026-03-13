@@ -10,13 +10,16 @@ public struct ContainerTestContext: Sendable {
 
     private let containers: [ObjectIdentifier: RunningContainer]
     private let stackOutputs: [ObjectIdentifier: [String: String]]
+    private let typedOutputs: [ObjectIdentifier: any Sendable]
 
     init(
         containers: [ObjectIdentifier: RunningContainer],
-        stackOutputs: [ObjectIdentifier: [String: String]] = [:]
+        stackOutputs: [ObjectIdentifier: [String: String]] = [:],
+        typedOutputs: [ObjectIdentifier: any Sendable] = [:]
     ) {
         self.containers = containers
         self.stackOutputs = stackOutputs
+        self.typedOutputs = typedOutputs
     }
 
     /// Look up a running container by its ``ContainerKey`` type.
@@ -43,6 +46,13 @@ public struct ContainerTestContext: Sendable {
     /// Look up raw CloudFormation stack outputs for a given key identifier.
     public func outputs(for keyID: ObjectIdentifier) -> [String: String]? {
         stackOutputs[keyID]
+    }
+
+    /// Look up a pre-constructed typed output for a given key identifier.
+    ///
+    /// Used by macro-generated accessors to retrieve ``StackOutputs`` values.
+    public func output<T: Sendable>(for keyID: ObjectIdentifier) -> T? {
+        typedOutputs[keyID] as? T
     }
 
     /// Returns the current context or throws if none is set.

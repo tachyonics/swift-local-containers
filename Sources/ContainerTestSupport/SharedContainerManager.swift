@@ -15,6 +15,8 @@ public actor SharedContainerManager {
     public static let shared = SharedContainerManager()
 
     private var containers: [ObjectIdentifier: RunningContainer] = [:]
+    private var stackOutputs: [ObjectIdentifier: [String: String]] = [:]
+    private var typedOutputs: [ObjectIdentifier: any Sendable] = [:]
     private var runtime: (any ContainerRuntime)?
     private let logger = Logger(label: "SharedContainerManager")
     private var cleanupRegistered = false
@@ -66,7 +68,11 @@ public actor SharedContainerManager {
             let running = try await container(for: key, runtime: runtime)
             resolved[key.id] = running
         }
-        return ContainerTestContext(containers: resolved)
+        return ContainerTestContext(
+            containers: resolved,
+            stackOutputs: stackOutputs,
+            typedOutputs: typedOutputs
+        )
     }
 
     /// Get or start a container for the given erased key.
@@ -97,6 +103,17 @@ public actor SharedContainerManager {
 
         for setup in spec.setups {
             try await setup.setUp(container: container)
+
+            if let outputSetup = setup as? OutputProducingSetup {
+                let rawOutputs = try await outputSetup.fetchOutputs(
+                    from: container
+                )
+                stackOutputs[key.id] = rawOutputs
+
+                if let constructor = key.outputConstructor {
+                    typedOutputs[key.id] = try constructor(rawOutputs)
+                }
+            }
         }
 
         containers[key.id] = container
