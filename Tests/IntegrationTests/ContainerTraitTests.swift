@@ -5,7 +5,7 @@ import Testing
 
 /// Integration test that exercises the full container lifecycle including
 /// wait strategy execution, mirroring the code path in `ContainerTrait.provideScope`.
-@Suite(.tags(.integration, .docker))
+@Suite(.tags(.integration, .docker), .enabled(if: dockerAvailable, "Docker is required"))
 struct ContainerTraitTests {
     @Test("Port wait strategy succeeds with nginx container")
     func portWaitStrategy() async throws {

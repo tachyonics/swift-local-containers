@@ -3,7 +3,7 @@ import DockerRuntime
 import LocalContainers
 import Testing
 
-@Suite(.tags(.integration, .docker))
+@Suite(.tags(.integration, .docker), .enabled(if: dockerAvailable, "Docker is required"))
 struct DockerLifecycleTests {
     @Test("Full Docker container lifecycle: pull, create, start, inspect, stop, remove")
     func dockerLifecycle() async throws {
