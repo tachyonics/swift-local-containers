@@ -11,8 +11,9 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
         let tool = try context.tool(named: "ContainerCodeGenTool")
         let outputDir = context.pluginWorkDirectoryURL
 
-        // Find JSON files that look like CloudFormation templates
-        let templateFiles = sourceTarget.sourceFiles(withSuffix: ".json").map(\.url)
+        // Find JSON files that are CloudFormation templates
+        let jsonFiles = sourceTarget.sourceFiles(withSuffix: ".json").map(\.url)
+        let templateFiles = jsonFiles.filter { isCloudFormationTemplate(at: $0) }
 
         var commands: [Command] = []
         for templateFile in templateFiles {
@@ -35,6 +36,15 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
 
         return commands
     }
+}
+
+private func isCloudFormationTemplate(at url: URL) -> Bool {
+    guard let data = try? Data(contentsOf: url),
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+        return false
+    }
+    return json["AWSTemplateFormatVersion"] != nil
 }
 
 private func pascalCase(_ string: String) -> String {

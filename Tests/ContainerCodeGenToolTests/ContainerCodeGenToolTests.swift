@@ -107,14 +107,15 @@ struct ContainerCodeGenToolTests {
         #expect(output.contains("\"sqs\""))
     }
 
-    @Test("Produces empty file for non-CF JSON")
-    func nonCFTemplateProducesEmptyFile() throws {
+    @Test("Exits with error for non-CF JSON")
+    func nonCFTemplateExitsWithError() throws {
         let template = """
             { "name": "not a template" }
             """
 
-        let output = try runTool(templateJSON: template)
-        #expect(output.isEmpty)
+        #expect(throws: ToolError.self) {
+            try runTool(templateJSON: template)
+        }
     }
 
     @Test("Produces empty file for template with no Outputs")

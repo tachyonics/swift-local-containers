@@ -33,11 +33,9 @@ enum ContainerCodeGenTool {
             throw ExitError.invalidTemplate
         }
 
-        // Verify this is a CloudFormation template
         guard template["AWSTemplateFormatVersion"] != nil else {
-            // Not a CF template — skip silently (plugin sends all .json files)
-            try "".write(toFile: outputPath, atomically: true, encoding: .utf8)
-            return
+            writeStderr("Not a CloudFormation template: \(templatePath)")
+            throw ExitError.invalidTemplate
         }
 
         let fileName = URL(fileURLWithPath: templatePath).lastPathComponent
