@@ -134,7 +134,8 @@ public struct CloudFormationSetup: ContainerSetup {
                 switch status {
                 case "CREATE_COMPLETE":
                     return
-                case _ where status.hasPrefix("CREATE_FAILED")
+                case _
+                where status.hasPrefix("CREATE_FAILED")
                     || status.hasPrefix("ROLLBACK")
                     || status.hasPrefix("DELETE"):
                     let reason = extractTag("StackStatusReason", from: xml) ?? status
@@ -203,12 +204,14 @@ public struct CloudFormationSetup: ContainerSetup {
 
     private func formEncodedBody(_ fields: [(String, String)]) -> String {
         fields.map { key, value in
-            let encodedKey = key.addingPercentEncoding(
-                withAllowedCharacters: .urlQueryValueAllowed
-            ) ?? key
-            let encodedValue = value.addingPercentEncoding(
-                withAllowedCharacters: .urlQueryValueAllowed
-            ) ?? value
+            let encodedKey =
+                key.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryValueAllowed
+                ) ?? key
+            let encodedValue =
+                value.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryValueAllowed
+                ) ?? value
             return "\(encodedKey)=\(encodedValue)"
         }.joined(separator: "&")
     }
@@ -229,8 +232,8 @@ extension CloudFormationSetup: OutputProducingSetup {
 
 // MARK: - URL Encoding
 
-private extension CharacterSet {
-    static let urlQueryValueAllowed: CharacterSet = {
+extension CharacterSet {
+    fileprivate static let urlQueryValueAllowed: CharacterSet = {
         var allowed = CharacterSet.urlQueryAllowed
         allowed.remove(charactersIn: "+=&#")
         return allowed
