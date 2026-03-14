@@ -176,11 +176,7 @@ public struct ContainerSuiteMacro: MemberMacro {
             return """
                 private enum \(raw: keyName): ContainerKey {
                     static let spec: ContainerSpec = {
-                        let templatePath = URL(fileURLWithPath: #filePath)
-                            .deletingLastPathComponent()
-                            .appendingPathComponent("Resources")
-                            .appendingPathComponent(\(typeName).templateFileName)
-                            .path
+                        let templatePath = \(typeName).templatePath(relativeTo: #filePath)
                         return ContainerSpec(
                             LocalStackContainer(
                                 services: \(typeName).requiredServices

@@ -86,11 +86,7 @@ final class ContainerSuiteMacroTests: XCTestCase {
 
                     private enum _AwsKey: ContainerKey {
                         static let spec: ContainerSpec = {
-                            let templatePath = URL(fileURLWithPath: #filePath)
-                                .deletingLastPathComponent()
-                                .appendingPathComponent("Resources")
-                                .appendingPathComponent(S3BucketTemplateOutputs.templateFileName)
-                                .path
+                            let templatePath = S3BucketTemplateOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: S3BucketTemplateOutputs.requiredServices
@@ -167,11 +163,7 @@ final class ContainerSuiteMacroTests: XCTestCase {
 
                     private enum _AwsKey: ContainerKey {
                         static let spec: ContainerSpec = {
-                            let templatePath = URL(fileURLWithPath: #filePath)
-                                .deletingLastPathComponent()
-                                .appendingPathComponent("Resources")
-                                .appendingPathComponent(S3BucketTemplateOutputs.templateFileName)
-                                .path
+                            let templatePath = S3BucketTemplateOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: S3BucketTemplateOutputs.requiredServices
@@ -311,11 +303,7 @@ final class ContainerSuiteMacroTests: XCTestCase {
 
                     private enum _AwsKey: ContainerKey {
                         static let spec: ContainerSpec = {
-                            let templatePath = URL(fileURLWithPath: #filePath)
-                                .deletingLastPathComponent()
-                                .appendingPathComponent("Resources")
-                                .appendingPathComponent(SomeOutputs.templateFileName)
-                                .path
+                            let templatePath = SomeOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: SomeOutputs.requiredServices

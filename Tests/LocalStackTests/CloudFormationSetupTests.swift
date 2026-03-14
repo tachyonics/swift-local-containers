@@ -2,6 +2,29 @@ import Testing
 
 @testable import LocalStack
 
+// MARK: - StackOutputs.templatePath(relativeTo:)
+
+private struct FakeOutputs: StackOutputs {
+    static let templateFileName = "my-template.json"
+    static let requiredServices = ["cloudformation", "s3"]
+    static let expectedOutputKeys = ["BucketName"]
+    let rawOutputs: [String: String]
+    init(rawOutputs: [String: String]) throws {
+        self.rawOutputs = rawOutputs
+    }
+}
+
+@Suite("StackOutputs")
+struct StackOutputsTests {
+    @Test("templatePath resolves relative to the given file path")
+    func templatePathResolution() {
+        let result = FakeOutputs.templatePath(
+            relativeTo: "/Users/dev/Project/Tests/MyTests.swift"
+        )
+        #expect(result == "/Users/dev/Project/Tests/Resources/my-template.json")
+    }
+}
+
 @Suite("CloudFormationSetup")
 struct CloudFormationSetupTests {
     @Test("Default stack name is test-stack")
