@@ -20,7 +20,10 @@ import Testing
 ///     }
 /// }
 /// ```
-public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
+// Also conforms to TestTrait to work around a Swift Testing bug where
+// _recursivelyApplyTraits inserts suite traits into child test nodes,
+// triggering a precondition that all traits on non-suite tests are TestTrait.
+public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestScoping {
     public let isRecursive = true
     let keys: [ErasedContainerKey]
     let runtime: R
@@ -121,7 +124,8 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
 /// A test trait that uses ``SharedContainerManager`` for process-wide container sharing.
 ///
 /// Generic over the runtime for the same reason as ``ContainerTrait``.
-public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
+// Also conforms to TestTrait — see ContainerTrait comment above.
+public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestScoping {
     public let isRecursive = true
     let keys: [ErasedContainerKey]
     let runtime: R
