@@ -8,3 +8,9 @@ DerivedData/
 .netrc
 .swift-version
 .swiftpm/
+
+# Build plugin artifacts (swiftc sometimes emits these into the repo root)
+*.o
+*.d
+*.dia
+*.swiftdeps

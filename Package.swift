@@ -94,6 +94,7 @@ let package = Package(
                 "LocalContainers",
                 "ContainerTestSupport",
                 "LocalStack",
+                "PlatformRuntime",
             ]
         ),
 
@@ -147,10 +148,12 @@ let package = Package(
             name: "IntegrationTests",
             dependencies: [
                 "ContainerTestSupport",
+                "ContainerMacrosLib",
                 "LocalStack",
                 "DockerRuntime",
                 "PlatformRuntime",
-            ]
+            ],
+            plugins: [.plugin(name: "ContainerCodeGen")]
         ),
 
         .testTarget(

@@ -222,6 +222,33 @@ public struct ContainerSuiteMacro: MemberMacro {
     }
 }
 
+// MARK: - ExtensionMacro
+
+extension ContainerSuiteMacro: ExtensionMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingExtensionsOf type: some TypeSyntaxProtocol,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+    ) throws -> [ExtensionDeclSyntax] {
+        let annotatedProperties = collectAnnotatedProperties(from: declaration)
+        guard !annotatedProperties.isEmpty else {
+            return []
+        }
+
+        let extensionDecl: DeclSyntax = """
+            extension \(type.trimmed): ContainerDeclarations {}
+            """
+
+        guard let extensionSyntax = extensionDecl.as(ExtensionDeclSyntax.self) else {
+            return []
+        }
+
+        return [extensionSyntax]
+    }
+}
+
 // MARK: - Supporting Types
 
 struct AnnotatedProperty {
