@@ -65,7 +65,7 @@ final class ContainerSuiteMacroTests: XCTestCase {
             """
             @ContainerSuite
             struct MyTests {
-                @LocalStackContainer(stackName: "test-stack")
+                @LocalStackContainer(stackName: "my-infra")
                 var aws: S3BucketTemplateOutputs
             }
             """,
@@ -94,7 +94,7 @@ final class ContainerSuiteMacroTests: XCTestCase {
                                 setups: [
                                     CloudFormationSetup(
                                         templatePath: templatePath,
-                                        stackName: "test-stack"
+                                        stackName: "my-infra"
                                     ),
                                 ]
                             )
