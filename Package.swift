@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "LocalStack", targets: ["LocalStack"]),
         .library(name: "ContainerTestSupport", targets: ["ContainerTestSupport"]),
         .library(name: "ContainerMacrosLib", targets: ["ContainerMacrosLib"]),
+        .plugin(name: "ContainerCodeGen", targets: ["ContainerCodeGen"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
