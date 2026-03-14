@@ -38,8 +38,10 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestSc
         testCase: Test.Case?,
         performing execute: @Sendable () async throws -> Void
     ) async throws {
-        // Only scope at suite level, not individual test cases
-        guard testCase == nil else {
+        // Only scope at suite level. The TestTrait conformance (needed to work
+        // around a Swift Testing bug) causes provideScope to also be called for
+        // child test functions with testCase == nil, so we check isSuite.
+        guard test.isSuite, testCase == nil else {
             try await execute()
             return
         }
@@ -140,7 +142,7 @@ public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, 
         testCase: Test.Case?,
         performing execute: @Sendable () async throws -> Void
     ) async throws {
-        guard testCase == nil else {
+        guard test.isSuite, testCase == nil else {
             try await execute()
             return
         }
