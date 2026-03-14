@@ -185,7 +185,7 @@ package.targets.append(
 
 #if os(macOS)
 package.dependencies.append(
-    .package(url: "https://github.com/apple/containerization.git", branch: "main")
+    .package(url: "https://github.com/apple/containerization.git", from: "0.28.0")
 )
 
 package.products.append(
