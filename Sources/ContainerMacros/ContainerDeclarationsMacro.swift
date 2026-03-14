@@ -4,7 +4,7 @@ import SwiftSyntaxMacros
 
 /// Member macro that scans properties for `@Container` / `@LocalStackContainer`
 /// attributes and generates `ContainerKey` enums and a `containerTrait` property.
-public struct ContainerSuiteMacro: MemberMacro {
+public struct ContainerDeclarationsMacro: MemberMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
@@ -224,7 +224,7 @@ public struct ContainerSuiteMacro: MemberMacro {
 
 // MARK: - ExtensionMacro
 
-extension ContainerSuiteMacro: ExtensionMacro {
+extension ContainerDeclarationsMacro: ExtensionMacro {
     public static func expansion(
         of node: AttributeSyntax,
         attachedTo declaration: some DeclGroupSyntax,

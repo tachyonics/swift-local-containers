@@ -5,9 +5,9 @@ import NIOCore
 import Testing
 
 @Containers
-enum CFContainers {
+struct CFContainers {
     @LocalStackContainer(stackName: "integration-test")
-    static var bucketStack: TestS3BucketOutputs
+    var bucketStack: TestS3BucketOutputs
 }
 
 @Suite(
@@ -16,12 +16,14 @@ enum CFContainers {
     .enabled(if: dockerAvailable, "Docker is required")
 )
 struct CloudFormationIntegrationTests {
+    let containers = CFContainers()
+
     @Test("Deploys CF stack, retrieves outputs, and interacts with S3 bucket")
     func deployAndInteract() async throws {
-        #expect(!CFContainers.bucketStack.bucketName.isEmpty)
+        #expect(!containers.bucketStack.bucketName.isEmpty)
 
-        let endpoint = CFContainers.bucketStack.awsEndpoint
-        let bucket = CFContainers.bucketStack.bucketName
+        let endpoint = containers.bucketStack.awsEndpoint
+        let bucket = containers.bucketStack.bucketName
         let objectUrl = "\(endpoint)/\(bucket)/test-key"
 
         // PUT an object into the bucket via LocalStack S3 API

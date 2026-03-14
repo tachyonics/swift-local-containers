@@ -6,13 +6,13 @@ import XCTest
 @testable import ContainerMacros
 
 private let testMacros: [String: Macro.Type] = [
-    "Containers": ContainerSuiteMacro.self,
+    "Containers": ContainerDeclarationsMacro.self,
     "Container": ContainerMacro.self,
     "LocalStackContainer": LocalStackContainerMacro.self,
 ]
 #endif
 
-final class ContainerSuiteMacroTests: XCTestCase {
+final class ContainerDeclarationsMacroTests: XCTestCase {
     #if canImport(ContainerMacros)
 
     // MARK: - @Containers Member Macro
@@ -463,6 +463,110 @@ final class ContainerSuiteMacroTests: XCTestCase {
             expandedSource: """
                 enum MyContainers {
                     static var stack: S3BucketOutputs {
+                        get {
+                            guard let output: S3BucketOutputs = ContainerTestContext.current?.output(
+                                for: ObjectIdentifier(_StackKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return output
+                        }
+                    }
+
+                    private enum _StackKey: ContainerKey {
+                        static let spec: ContainerSpec = {
+                            let templatePath = S3BucketOutputs.templatePath(relativeTo: #filePath)
+                            return ContainerSpec(
+                                LocalStackContainer(
+                                    services: S3BucketOutputs.requiredServices
+                                ).configuration(),
+                                setups: [
+                                    CloudFormationSetup(
+                                        templatePath: templatePath,
+                                        stackName: "infra"
+                                    ),
+                                ]
+                            )
+                        }()
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_StackKey.self, outputConstructor: {
+                                    try S3BucketOutputs(rawOutputs: $0)
+                                })],
+                        runtime: PlatformRuntime()
+                    )
+                }
+
+                extension MyContainers: ContainerDeclarations {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    // MARK: - Struct with Instance Properties
+
+    func testContainersOnStructWithInstanceContainer() throws {
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyContainers {
+                @Container(image: "postgres:16", ports: [5432])
+                var db: RunningContainer
+            }
+            """,
+            expandedSource: """
+                struct MyContainers {
+                    var db: RunningContainer {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_DbKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return container
+                        }
+                    }
+
+                    private enum _DbKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: "postgres:16",
+                                ports: [PortMapping(containerPort: 5432)]
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_DbKey.self)],
+                        runtime: PlatformRuntime()
+                    )
+                }
+
+                extension MyContainers: ContainerDeclarations {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testContainersOnStructWithInstanceLocalStack() throws {
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyContainers {
+                @LocalStackContainer(stackName: "infra")
+                var stack: S3BucketOutputs
+            }
+            """,
+            expandedSource: """
+                struct MyContainers {
+                    var stack: S3BucketOutputs {
                         get {
                             guard let output: S3BucketOutputs = ContainerTestContext.current?.output(
                                 for: ObjectIdentifier(_StackKey.self)

@@ -35,7 +35,7 @@
 public macro Containers() =
     #externalMacro(
         module: "ContainerMacros",
-        type: "ContainerSuiteMacro"
+        type: "ContainerDeclarationsMacro"
     )
 
 /// Marks a property as a plain container, generating an accessor that looks up
