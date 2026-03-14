@@ -20,11 +20,8 @@ import Testing
 ///     }
 /// }
 /// ```
-// Also conforms to TestTrait to work around a Swift Testing bug where
-// _recursivelyApplyTraits inserts suite traits into child test nodes,
-// triggering a precondition that all traits on non-suite tests are TestTrait.
-public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestScoping {
-    public let isRecursive = true
+public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
+    public let isRecursive = false
     let keys: [ErasedContainerKey]
     let runtime: R
 
@@ -38,10 +35,8 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestSc
         testCase: Test.Case?,
         performing execute: @Sendable () async throws -> Void
     ) async throws {
-        // Only scope at suite level. The TestTrait conformance (needed to work
-        // around a Swift Testing bug) causes provideScope to also be called for
-        // child test functions with testCase == nil, so we check isSuite.
-        guard test.isSuite, testCase == nil else {
+        // Only scope at suite level, not individual test cases
+        guard testCase == nil else {
             try await execute()
             return
         }
@@ -126,9 +121,8 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestSc
 /// A test trait that uses ``SharedContainerManager`` for process-wide container sharing.
 ///
 /// Generic over the runtime for the same reason as ``ContainerTrait``.
-// Also conforms to TestTrait — see ContainerTrait comment above.
-public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, TestScoping {
-    public let isRecursive = true
+public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
+    public let isRecursive = false
     let keys: [ErasedContainerKey]
     let runtime: R
 
@@ -142,7 +136,7 @@ public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestTrait, 
         testCase: Test.Case?,
         performing execute: @Sendable () async throws -> Void
     ) async throws {
-        guard test.isSuite, testCase == nil else {
+        guard testCase == nil else {
             try await execute()
             return
         }
