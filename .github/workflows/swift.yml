@@ -19,7 +19,7 @@ jobs:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Install dependencies
-        run: apt-get update && apt-get install -y libssl-dev curl unzip
+        run: apt-get update && apt-get install -y libssl-dev curl unzip docker.io
       - uses: actions/checkout@v6
       - name: Build
         run: swift build -c release -Xswiftc -strict-concurrency=complete
@@ -43,8 +43,8 @@ jobs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
-      - name: Install libssl-dev
-        run: apt-get update && apt-get install -y libssl-dev
+      - name: Install dependencies
+        run: apt-get update && apt-get install -y libssl-dev docker.io
       - uses: actions/checkout@v6
       - name: Build
         run: swift build -c release -Xswiftc -strict-concurrency=complete
@@ -78,7 +78,7 @@ jobs:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Install dependencies
-        run: apt-get update && apt-get install -y curl
+        run: apt-get update && apt-get install -y curl docker.io
       - uses: actions/checkout@v6
       - name: Run tests with coverage
         run: swift test --enable-code-coverage --xunit-output test-results.xml
