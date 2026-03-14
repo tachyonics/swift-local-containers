@@ -258,6 +258,138 @@ final class ContainerSuiteMacroTests: XCTestCase {
         )
     }
 
+    // MARK: - @LocalStackContainer Accessor Edge Cases
+
+    func testLocalStackContainerWithoutTypeAnnotation() throws {
+        assertMacroExpansion(
+            """
+            @ContainerSuite
+            struct MyTests {
+                @LocalStackContainer(stackName: "test")
+                var aws
+            }
+            """,
+            expandedSource: """
+            struct MyTests {
+                var aws
+
+
+
+                static let containerTrait = ContainerTrait(
+                    keys: [ErasedContainerKey(_AwsKey.self)],
+                    runtime: PlatformRuntime()
+                )
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testLocalStackContainerWithDefaultStackName() throws {
+        assertMacroExpansion(
+            """
+            @ContainerSuite
+            struct MyTests {
+                @LocalStackContainer()
+                var aws: SomeOutputs
+            }
+            """,
+            expandedSource: """
+            struct MyTests {
+                var aws: SomeOutputs {
+                    get {
+                        guard let output: SomeOutputs = ContainerTestContext.current?.output(
+                            for: ObjectIdentifier(_AwsKey.self)
+                        ) else {
+                            preconditionFailure(
+                                "No container context — is this test inside a @Suite with containerTrait?"
+                            )
+                        }
+                        return output
+                    }
+                }
+
+                private enum _AwsKey: ContainerKey {
+                    static let spec: ContainerSpec = {
+                        let templatePath = URL(fileURLWithPath: #filePath)
+                            .deletingLastPathComponent()
+                            .appendingPathComponent("Resources")
+                            .appendingPathComponent(SomeOutputs.templateFileName)
+                            .path
+                        return ContainerSpec(
+                            LocalStackContainer(
+                                services: SomeOutputs.requiredServices
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: templatePath,
+                                    stackName: "test-stack"
+                                ),
+                            ]
+                        )
+                    }()
+                }
+
+                static let containerTrait = ContainerTrait(
+                    keys: [ErasedContainerKey(_AwsKey.self, outputConstructor: {
+                                try SomeOutputs(rawOutputs: $0)
+                            })],
+                    runtime: PlatformRuntime()
+                )
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    // MARK: - @ContainerSuite with non-variable members
+
+    func testContainerSuiteIgnoresNonVariableMembers() throws {
+        assertMacroExpansion(
+            """
+            @ContainerSuite
+            struct MyTests {
+                func helper() {}
+
+                @Container(image: "redis:7", ports: [6379])
+                var cache: RunningContainer
+            }
+            """,
+            expandedSource: """
+            struct MyTests {
+                func helper() {}
+                var cache: RunningContainer {
+                    get {
+                        guard let container = try? ContainerTestContext.current?.container(
+                            for: ObjectIdentifier(_CacheKey.self)
+                        ) else {
+                            preconditionFailure(
+                                "No container context — is this test inside a @Suite with containerTrait?"
+                            )
+                        }
+                        return container
+                    }
+                }
+
+                private enum _CacheKey: ContainerKey {
+                    static let spec = ContainerSpec(
+                        ContainerConfiguration(
+                            image: "redis:7",
+                            ports: [PortMapping(containerPort: 6379)]
+                        )
+                    )
+                }
+
+                static let containerTrait = ContainerTrait(
+                    keys: [ErasedContainerKey(_CacheKey.self)],
+                    runtime: PlatformRuntime()
+                )
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
     #else
     func testMacrosUnavailable() throws {
         XCTSkip("Macros are only supported when running the tests from the package")
