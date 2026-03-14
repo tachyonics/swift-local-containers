@@ -2,7 +2,7 @@ import Testing
 
 /// A minimal `TestScoping` trait to reproduce the `_recursivelyApplyTraits`
 /// crash on Linux CI. If this crashes, it's a Swift Testing bug — not our code.
-private struct MinimalTrait: SuiteTrait, TestScoping {
+private struct MinimalTrait: SuiteTrait, TestTrait, TestScoping {
     let isRecursive = true
 
     func provideScope(
