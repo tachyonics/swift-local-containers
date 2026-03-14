@@ -270,17 +270,17 @@ final class ContainerSuiteMacroTests: XCTestCase {
             }
             """,
             expandedSource: """
-            struct MyTests {
-                var aws
+                struct MyTests {
+                    var aws
 
 
 
-                static let containerTrait = ContainerTrait(
-                    keys: [ErasedContainerKey(_AwsKey.self)],
-                    runtime: PlatformRuntime()
-                )
-            }
-            """,
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_AwsKey.self)],
+                        runtime: PlatformRuntime()
+                    )
+                }
+                """,
             macros: testMacros
         )
     }
@@ -295,49 +295,49 @@ final class ContainerSuiteMacroTests: XCTestCase {
             }
             """,
             expandedSource: """
-            struct MyTests {
-                var aws: SomeOutputs {
-                    get {
-                        guard let output: SomeOutputs = ContainerTestContext.current?.output(
-                            for: ObjectIdentifier(_AwsKey.self)
-                        ) else {
-                            preconditionFailure(
-                                "No container context — is this test inside a @Suite with containerTrait?"
-                            )
+                struct MyTests {
+                    var aws: SomeOutputs {
+                        get {
+                            guard let output: SomeOutputs = ContainerTestContext.current?.output(
+                                for: ObjectIdentifier(_AwsKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return output
                         }
-                        return output
                     }
-                }
 
-                private enum _AwsKey: ContainerKey {
-                    static let spec: ContainerSpec = {
-                        let templatePath = URL(fileURLWithPath: #filePath)
-                            .deletingLastPathComponent()
-                            .appendingPathComponent("Resources")
-                            .appendingPathComponent(SomeOutputs.templateFileName)
-                            .path
-                        return ContainerSpec(
-                            LocalStackContainer(
-                                services: SomeOutputs.requiredServices
-                            ).configuration(),
-                            setups: [
-                                CloudFormationSetup(
-                                    templatePath: templatePath,
-                                    stackName: "test-stack"
-                                ),
-                            ]
-                        )
-                    }()
-                }
+                    private enum _AwsKey: ContainerKey {
+                        static let spec: ContainerSpec = {
+                            let templatePath = URL(fileURLWithPath: #filePath)
+                                .deletingLastPathComponent()
+                                .appendingPathComponent("Resources")
+                                .appendingPathComponent(SomeOutputs.templateFileName)
+                                .path
+                            return ContainerSpec(
+                                LocalStackContainer(
+                                    services: SomeOutputs.requiredServices
+                                ).configuration(),
+                                setups: [
+                                    CloudFormationSetup(
+                                        templatePath: templatePath,
+                                        stackName: "test-stack"
+                                    ),
+                                ]
+                            )
+                        }()
+                    }
 
-                static let containerTrait = ContainerTrait(
-                    keys: [ErasedContainerKey(_AwsKey.self, outputConstructor: {
-                                try SomeOutputs(rawOutputs: $0)
-                            })],
-                    runtime: PlatformRuntime()
-                )
-            }
-            """,
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_AwsKey.self, outputConstructor: {
+                                    try SomeOutputs(rawOutputs: $0)
+                                })],
+                        runtime: PlatformRuntime()
+                    )
+                }
+                """,
             macros: testMacros
         )
     }
@@ -356,36 +356,36 @@ final class ContainerSuiteMacroTests: XCTestCase {
             }
             """,
             expandedSource: """
-            struct MyTests {
-                func helper() {}
-                var cache: RunningContainer {
-                    get {
-                        guard let container = try? ContainerTestContext.current?.container(
-                            for: ObjectIdentifier(_CacheKey.self)
-                        ) else {
-                            preconditionFailure(
-                                "No container context — is this test inside a @Suite with containerTrait?"
-                            )
+                struct MyTests {
+                    func helper() {}
+                    var cache: RunningContainer {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_CacheKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return container
                         }
-                        return container
                     }
-                }
 
-                private enum _CacheKey: ContainerKey {
-                    static let spec = ContainerSpec(
-                        ContainerConfiguration(
-                            image: "redis:7",
-                            ports: [PortMapping(containerPort: 6379)]
+                    private enum _CacheKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: "redis:7",
+                                ports: [PortMapping(containerPort: 6379)]
+                            )
                         )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_CacheKey.self)],
+                        runtime: PlatformRuntime()
                     )
                 }
-
-                static let containerTrait = ContainerTrait(
-                    keys: [ErasedContainerKey(_CacheKey.self)],
-                    runtime: PlatformRuntime()
-                )
-            }
-            """,
+                """,
             macros: testMacros
         )
     }

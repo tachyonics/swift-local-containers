@@ -207,9 +207,12 @@ struct ContainerTestContextTests {
 
     @Test("ErasedContainerKey stores and invokes outputConstructor")
     func erasedKeyOutputConstructor() throws {
-        let key = ErasedContainerKey(FakeDB.self, outputConstructor: { rawOutputs in
-            rawOutputs["key"] ?? "missing"
-        })
+        let key = ErasedContainerKey(
+            FakeDB.self,
+            outputConstructor: { rawOutputs in
+                rawOutputs["key"] ?? "missing"
+            }
+        )
 
         #expect(key.outputConstructor != nil)
         let result = try key.outputConstructor?(["key": "value"])
