@@ -134,8 +134,8 @@ let package = Package(
             name: "PlatformRuntimeTests",
             dependencies: [
                 "PlatformRuntime",
+                "ContainerTestSupport",
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
             ]
         ),
 
