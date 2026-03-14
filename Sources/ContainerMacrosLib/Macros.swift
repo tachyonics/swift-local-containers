@@ -1,14 +1,41 @@
 @_exported import ContainerTestSupport
 @_exported import LocalContainers
 @_exported import LocalStack
+@_exported import PlatformRuntime
 
 /// Scans properties for `@Container` / `@LocalStackContainer` attributes and
-/// generates `ContainerKey` enums and a `containerTrait` static property.
+/// generates `ContainerKey` enums, a `containerTrait` static property, and
+/// ``ContainerDeclarations`` conformance.
+///
+/// Apply to a struct or enum that declares container properties. The generated
+/// `containerTrait` can then be passed to `@Suite(...)`:
+///
+/// ```swift
+/// @Containers
+/// enum MyContainers {
+///     @Container(image: "postgres:16", ports: [5432])
+///     static var db: RunningContainer
+/// }
+///
+/// @Suite(MyContainers.containerTrait, .tags(.integration))
+/// struct MyTests { ... }
+/// ```
+///
+/// Container declarations can be shared across multiple suites:
+///
+/// ```swift
+/// @Suite(SharedContainers.containerTrait)
+/// struct SuiteA { ... }
+///
+/// @Suite(SharedContainers.containerTrait)
+/// struct SuiteB { ... }
+/// ```
 @attached(member, names: arbitrary)
-public macro ContainerSuite() =
+@attached(extension, conformances: ContainerDeclarations)
+public macro Containers() =
     #externalMacro(
         module: "ContainerMacros",
-        type: "ContainerSuiteMacro"
+        type: "ContainerDeclarationsMacro"
     )
 
 /// Marks a property as a plain container, generating an accessor that looks up

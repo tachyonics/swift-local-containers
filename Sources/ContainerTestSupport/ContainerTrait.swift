@@ -21,7 +21,7 @@ import Testing
 /// }
 /// ```
 public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
-    public let isRecursive = true
+    public let isRecursive = false
     let keys: [ErasedContainerKey]
     let runtime: R
 
@@ -122,7 +122,7 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
 ///
 /// Generic over the runtime for the same reason as ``ContainerTrait``.
 public struct SharedContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
-    public let isRecursive = true
+    public let isRecursive = false
     let keys: [ErasedContainerKey]
     let runtime: R
 

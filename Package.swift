@@ -94,6 +94,7 @@ let package = Package(
                 "LocalContainers",
                 "ContainerTestSupport",
                 "LocalStack",
+                "PlatformRuntime",
             ]
         ),
 
@@ -133,8 +134,8 @@ let package = Package(
             name: "PlatformRuntimeTests",
             dependencies: [
                 "PlatformRuntime",
+                "ContainerTestSupport",
                 "LocalContainers",
-                .product(name: "Smockable", package: "smockable"),
             ]
         ),
 
@@ -147,10 +148,12 @@ let package = Package(
             name: "IntegrationTests",
             dependencies: [
                 "ContainerTestSupport",
+                "ContainerMacrosLib",
                 "LocalStack",
                 "DockerRuntime",
                 "PlatformRuntime",
-            ]
+            ],
+            plugins: [.plugin(name: "ContainerCodeGen")]
         ),
 
         .testTarget(

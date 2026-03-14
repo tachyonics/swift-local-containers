@@ -14,7 +14,11 @@ import ContainerizationRuntime
 /// This allows the same test code to run on macOS development machines and
 /// Linux CI without any platform-specific configuration.
 public struct PlatformRuntime: ContainerRuntime {
-    private let underlying: any ContainerRuntime
+    #if canImport(ContainerizationRuntime)
+    private let underlying: ContainerizationContainerRuntime
+    #else
+    private let underlying: DockerContainerRuntime
+    #endif
 
     /// Creates a `PlatformRuntime` using the default backend for the current platform.
     public init() {
@@ -23,11 +27,6 @@ public struct PlatformRuntime: ContainerRuntime {
         #else
         self.underlying = DockerContainerRuntime()
         #endif
-    }
-
-    /// Creates a `PlatformRuntime` with an explicit runtime backend.
-    public init(runtime: any ContainerRuntime) {
-        self.underlying = runtime
     }
 
     public func pullImage(_ reference: String) async throws {

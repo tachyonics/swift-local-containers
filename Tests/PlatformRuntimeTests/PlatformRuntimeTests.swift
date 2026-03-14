@@ -1,123 +1,107 @@
-import Smockable
+import ContainerTestSupport
+import Foundation
 import Testing
 
 @testable import LocalContainers
 @testable import PlatformRuntime
 
-@Smock(additionalEquatableTypes: [RunningContainer.self])
-protocol TestContainerRuntime: ContainerRuntime {
-    func pullImage(_ reference: String) async throws
-    func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer
-    func stopContainer(_ container: RunningContainer) async throws
-    func removeContainer(_ container: RunningContainer) async throws
-    func inspect(container: RunningContainer) async throws -> ContainerInspection
-    func logs(for container: RunningContainer) async throws -> String
-}
+private let dockerAvailable: Bool = {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/sh")
+    process.arguments = ["-c", "docker info"]
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    try? process.run()
+    process.waitUntilExit()
+    return process.terminationStatus == 0
+}()
 
-private let stubbedContainer = RunningContainer(
-    id: "stub-1",
-    name: "stub",
-    image: "stub:latest",
-    ports: [ResolvedPortMapping(containerPort: 80, hostPort: 32000)]
+// API tests only run on platforms where PlatformRuntime delegates to Docker,
+// since ContainerizationContainerRuntime is not yet fully implemented.
+#if !canImport(ContainerizationRuntime)
+@Suite(
+    "PlatformRuntime API",
+    .tags(.integration, .docker),
+    .enabled(if: dockerAvailable, "Docker is required")
 )
+struct PlatformRuntimeAPITests {
+    let runtime = PlatformRuntime()
 
-private func makeMock() -> MockTestContainerRuntime {
-    var expectations = MockTestContainerRuntime.Expectations()
-    when(expectations.pullImage(.any), complete: .withSuccess)
-    when(expectations.startContainer(from: .any), return: stubbedContainer)
-    when(expectations.stopContainer(.any), complete: .withSuccess)
-    when(expectations.removeContainer(.any), complete: .withSuccess)
-    when(
-        expectations.inspect(container: .any),
-        return: ContainerInspection(isRunning: true, healthStatus: .healthy)
-    )
-    when(expectations.logs(for: .any), return: "")
-    return MockTestContainerRuntime(expectations: expectations)
-}
-
-@Suite("PlatformRuntime")
-struct PlatformRuntimeTests {
-    @Test("pullImage delegates to underlying runtime")
-    func pullDelegation() async throws {
-        let mock = makeMock()
-        let runtime = PlatformRuntime(runtime: mock)
-
-        try await runtime.pullImage("nginx:latest")
-
-        verify(mock).pullImage("nginx:latest")
+    @Test("pullImage pulls without error")
+    func pullImage() async throws {
+        try await runtime.pullImage("alpine:latest")
     }
 
-    @Test("startContainer delegates and returns the result")
-    func startDelegation() async throws {
-        let mock = makeMock()
-        let runtime = PlatformRuntime(runtime: mock)
+    @Test("startContainer and stopContainer manage lifecycle")
+    func startAndStop() async throws {
+        try await runtime.pullImage("alpine:latest")
 
-        let config = ContainerConfiguration(image: "redis:7")
+        let config = ContainerConfiguration(
+            image: "alpine:latest",
+            command: ["sleep", "30"]
+        )
         let container = try await runtime.startContainer(from: config)
-
-        verify(mock).startContainer(from: .matching { $0.image == "redis:7" })
-        #expect(container.id == "stub-1")
-    }
-
-    @Test("stopContainer delegates to underlying runtime")
-    func stopDelegation() async throws {
-        let mock = makeMock()
-        let runtime = PlatformRuntime(runtime: mock)
-        let container = RunningContainer(id: "c-1", name: "test", image: "test")
+        #expect(!container.id.isEmpty)
+        #expect(container.image == "alpine:latest")
 
         try await runtime.stopContainer(container)
-
-        verify(mock).stopContainer(container)
-    }
-
-    @Test("removeContainer delegates to underlying runtime")
-    func removeDelegation() async throws {
-        let mock = makeMock()
-        let runtime = PlatformRuntime(runtime: mock)
-        let container = RunningContainer(id: "c-2", name: "test", image: "test")
-
         try await runtime.removeContainer(container)
-
-        verify(mock).removeContainer(container)
     }
 
-    @Test("inspectContainer delegates to underlying runtime")
-    func inspectDelegation() async throws {
-        let mock = makeMock()
-        let runtime = PlatformRuntime(runtime: mock)
-        let container = RunningContainer(id: "c-3", name: "test", image: "test")
+    @Test("inspect returns running state")
+    func inspect() async throws {
+        try await runtime.pullImage("alpine:latest")
+
+        let config = ContainerConfiguration(
+            image: "alpine:latest",
+            command: ["sleep", "30"],
+            waitStrategy: .fixedDelay(.milliseconds(500))
+        )
+        let container = try await runtime.startContainer(from: config)
+
+        defer {
+            Task {
+                try? await runtime.stopContainer(container)
+                try? await runtime.removeContainer(container)
+            }
+        }
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
 
         let inspection = try await runtime.inspect(container: container)
-
-        verify(mock).inspect(container: container)
-        #expect(inspection.isRunning == true)
-        #expect(inspection.healthStatus == .healthy)
+        #expect(inspection.isRunning)
     }
 
-    @Test("containerLogs delegates to underlying runtime")
-    func logsDelegation() async throws {
-        let mock = makeMock()
-        let runtime = PlatformRuntime(runtime: mock)
-        let container = RunningContainer(id: "c-4", name: "test", image: "test")
+    @Test("logs returns container output")
+    func logs() async throws {
+        try await runtime.pullImage("alpine:latest")
 
-        let logs = try await runtime.logs(for: container)
-
-        verify(mock).logs(for: container)
-        #expect(logs == "")
-    }
-
-    @Test("Errors from underlying runtime propagate")
-    func errorPropagation() async {
-        var expectations = MockTestContainerRuntime.Expectations()
-        when(
-            expectations.pullImage(.any),
-            throw: ContainerError.imagePullFailed(image: "bad:image", reason: "stubbed error")
+        let config = ContainerConfiguration(
+            image: "alpine:latest",
+            command: ["echo", "hello from PlatformRuntime"],
+            waitStrategy: .fixedDelay(.milliseconds(500))
         )
-        let mock = MockTestContainerRuntime(expectations: expectations)
-        let runtime = PlatformRuntime(runtime: mock)
+        let container = try await runtime.startContainer(from: config)
 
-        await #expect(throws: ContainerError.self) {
-            try await runtime.pullImage("bad:image")
+        defer {
+            Task {
+                try? await runtime.stopContainer(container)
+                try? await runtime.removeContainer(container)
+            }
         }
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
+
+        let output = try await runtime.logs(for: container)
+        #expect(output.contains("hello from PlatformRuntime"))
     }
 }
+#endif

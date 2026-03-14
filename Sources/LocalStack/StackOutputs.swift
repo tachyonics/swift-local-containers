@@ -28,6 +28,18 @@ public protocol StackOutputs: Sendable {
 }
 
 extension StackOutputs {
+    /// The AWS endpoint URL for the LocalStack container backing this stack.
+    ///
+    /// Injected automatically by ``CloudFormationSetup/fetchOutputs(from:)``.
+    public var awsEndpoint: String {
+        guard let endpoint = rawOutputs["_awsEndpoint"] else {
+            preconditionFailure(
+                "No AWS endpoint — is this used inside a ContainerTrait scope?"
+            )
+        }
+        return endpoint
+    }
+
     /// Resolves the template path relative to the caller's source file.
     ///
     /// Assumes the template lives in a `Resources/` directory alongside the
