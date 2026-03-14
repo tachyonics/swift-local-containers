@@ -1,10 +1,9 @@
-import ContainerTestSupport
 import Foundation
 
-let npmAvailable: Bool = {
+public let dockerAvailable: Bool = {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/bin/sh")
-    process.arguments = ["-c", "which npm"]
+    process.arguments = ["-c", "docker info"]
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
     try? process.run()
