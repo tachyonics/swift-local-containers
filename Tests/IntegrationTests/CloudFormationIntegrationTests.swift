@@ -20,11 +20,10 @@ struct CloudFormationIntegrationTests {
 
     @Test("Deploys CF stack, retrieves outputs, and interacts with S3 bucket")
     func deployAndInteract() async throws {
-        #expect(!containers.bucketStack.bucketName.isEmpty)
+        let bucketStack = containers.bucketStack
+        #expect(!bucketStack.bucketName.isEmpty)
 
-        let endpoint = containers.bucketStack.awsEndpoint
-        let bucket = containers.bucketStack.bucketName
-        let objectUrl = "\(endpoint)/\(bucket)/test-key"
+        let objectUrl = "\(bucketStack.awsEndpoint)/\(bucketStack.bucketName)/test-key"
 
         // PUT an object into the bucket via LocalStack S3 API
         var putRequest = HTTPClientRequest(url: objectUrl)
