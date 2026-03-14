@@ -18,11 +18,21 @@ public struct ErasedContainerKey: Sendable {
     /// The container specification from the original key.
     public var spec: ContainerSpec { storage.spec }
 
+    /// Optional closure that constructs a typed output from raw key-value outputs.
+    ///
+    /// Set by macro-generated code to enable pre-construction of ``StackOutputs``
+    /// values in ``ContainerTrait/provideScope(for:testCase:performing:)``.
+    public let outputConstructor: (@Sendable ([String: String]) throws -> any Sendable)?
+
     /// Wraps a concrete ``ContainerKey`` type.
-    public init<K: ContainerKey>(_ key: K.Type) {
+    public init<K: ContainerKey>(
+        _ key: K.Type,
+        outputConstructor: (@Sendable ([String: String]) throws -> any Sendable)? = nil
+    ) {
         self.id = ObjectIdentifier(key)
         self.name = String(describing: key)
         self.storage = Storage(spec: key.spec)
+        self.outputConstructor = outputConstructor
     }
 }
 

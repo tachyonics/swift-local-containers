@@ -131,4 +131,23 @@ public struct CloudFormationSetup: ContainerSetup {
             reason: "deleteStack not yet implemented"
         )
     }
+
+    private func describeStack(endpoint: String) async throws -> String {
+        // TODO: POST to <endpoint>/ with Action=DescribeStacks&StackName=<stackName>
+        throw ContainerError.setupFailed(
+            step: "CloudFormationSetup",
+            reason: "describeStack not yet implemented"
+        )
+    }
+}
+
+// MARK: - OutputProducingSetup
+
+extension CloudFormationSetup: OutputProducingSetup {
+    public func fetchOutputs(
+        from container: RunningContainer
+    ) async throws -> [String: String] {
+        let endpoint = try LocalStackEndpoint(container: container).awsEndpoint()
+        return extractOutputs(from: try await describeStack(endpoint: endpoint))
+    }
 }

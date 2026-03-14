@@ -1,5 +1,6 @@
 // swift-tools-version: 6.1
 
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -13,11 +14,13 @@ let package = Package(
         .library(name: "PlatformRuntime", targets: ["PlatformRuntime"]),
         .library(name: "LocalStack", targets: ["LocalStack"]),
         .library(name: "ContainerTestSupport", targets: ["ContainerTestSupport"]),
+        .library(name: "ContainerMacrosLib", targets: ["ContainerMacrosLib"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
         // MARK: - Build Plugins
@@ -82,6 +85,18 @@ let package = Package(
             ]
         ),
 
+        // MARK: - Macros
+
+        .target(
+            name: "ContainerMacrosLib",
+            dependencies: [
+                "ContainerMacros",
+                "LocalContainers",
+                "ContainerTestSupport",
+                "LocalStack",
+            ]
+        ),
+
         // MARK: - Tests
 
         .testTarget(
@@ -137,7 +152,29 @@ let package = Package(
                 "PlatformRuntime",
             ]
         ),
+
+        .testTarget(
+            name: "ContainerMacrosTests",
+            dependencies: [
+                "ContainerMacros",
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ]
+        ),
     ]
+)
+
+// MARK: - Macro target (appended separately for type inference)
+
+package.targets.append(
+    .macro(
+        name: "ContainerMacros",
+        dependencies: [
+            .product(name: "SwiftSyntax", package: "swift-syntax"),
+            .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+            .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+            .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+        ]
+    )
 )
 
 // MARK: - macOS-only: Apple Containerization backend

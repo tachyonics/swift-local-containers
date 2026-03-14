@@ -168,6 +168,63 @@ struct ContainerTestContextTests {
         #expect(outputs == nil)
     }
 
+    // MARK: - output(for:)
+
+    @Test("output(for:) returns stored typed output")
+    func typedOutputForKey() {
+        let expectedOutput = "typed-value"
+        let ctx = ContainerTestContext(
+            containers: [ObjectIdentifier(FakeDB.self): Self.dbContainer],
+            typedOutputs: [ObjectIdentifier(FakeDB.self): expectedOutput]
+        )
+
+        let result: String? = ctx.output(for: ObjectIdentifier(FakeDB.self))
+        #expect(result == "typed-value")
+    }
+
+    @Test("output(for:) returns nil for unregistered key")
+    func typedOutputForMissingKey() {
+        let ctx = ContainerTestContext(
+            containers: [ObjectIdentifier(FakeDB.self): Self.dbContainer]
+        )
+
+        let result: String? = ctx.output(for: ObjectIdentifier(Unregistered.self))
+        #expect(result == nil)
+    }
+
+    @Test("output(for:) returns nil for type mismatch")
+    func typedOutputTypeMismatch() {
+        let ctx = ContainerTestContext(
+            containers: [ObjectIdentifier(FakeDB.self): Self.dbContainer],
+            typedOutputs: [ObjectIdentifier(FakeDB.self): "a string"]
+        )
+
+        let result: Int? = ctx.output(for: ObjectIdentifier(FakeDB.self))
+        #expect(result == nil)
+    }
+
+    // MARK: - ErasedContainerKey outputConstructor
+
+    @Test("ErasedContainerKey stores and invokes outputConstructor")
+    func erasedKeyOutputConstructor() throws {
+        let key = ErasedContainerKey(
+            FakeDB.self,
+            outputConstructor: { rawOutputs in
+                rawOutputs["key"] ?? "missing"
+            }
+        )
+
+        #expect(key.outputConstructor != nil)
+        let result = try key.outputConstructor?(["key": "value"])
+        #expect(result as? String == "value")
+    }
+
+    @Test("ErasedContainerKey outputConstructor defaults to nil")
+    func erasedKeyNoOutputConstructor() {
+        let key = ErasedContainerKey(FakeDB.self)
+        #expect(key.outputConstructor == nil)
+    }
+
     // MARK: - requireCurrent()
 
     @Test("requireCurrent() throws when no context is set")
