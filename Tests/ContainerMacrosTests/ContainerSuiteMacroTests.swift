@@ -332,12 +332,14 @@ final class ContainerSuiteMacroTests: XCTestCase {
 
     // MARK: - @ContainerSuite with non-variable members
 
-    func testContainerSuiteIgnoresNonVariableMembers() throws {
+    func testContainerSuiteIgnoresUnannotatedMembers() throws {
         assertMacroExpansion(
             """
             @ContainerSuite
             struct MyTests {
                 func helper() {}
+
+                var name: String
 
                 @Container(image: "redis:7", ports: [6379])
                 var cache: RunningContainer
@@ -346,6 +348,8 @@ final class ContainerSuiteMacroTests: XCTestCase {
             expandedSource: """
                 struct MyTests {
                     func helper() {}
+
+                    var name: String
                     var cache: RunningContainer {
                         get {
                             guard let container = try? ContainerTestContext.current?.container(
