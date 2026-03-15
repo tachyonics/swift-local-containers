@@ -10,6 +10,7 @@ protocol TestContainerRuntime: ContainerRuntime {
     func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer
     func stopContainer(_ container: RunningContainer) async throws
     func removeContainer(_ container: RunningContainer) async throws
+    func exec(command: [String], in container: RunningContainer) async throws -> Int32
     func inspect(container: RunningContainer) async throws -> ContainerInspection
     func logs(for container: RunningContainer) async throws -> String
 }
