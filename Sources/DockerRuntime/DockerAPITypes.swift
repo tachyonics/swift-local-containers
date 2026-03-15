@@ -10,22 +10,19 @@ public struct CreateContainerRequest: Codable, Sendable {
     public var cmd: [String]?
     public var exposedPorts: [String: EmptyObject]?
     public var hostConfig: HostConfig?
-    public var healthcheck: Healthcheck?
 
     public init(
         image: String,
         env: [String]? = nil,
         cmd: [String]? = nil,
         exposedPorts: [String: EmptyObject]? = nil,
-        hostConfig: HostConfig? = nil,
-        healthcheck: Healthcheck? = nil
+        hostConfig: HostConfig? = nil
     ) {
         self.image = image
         self.env = env
         self.cmd = cmd
         self.exposedPorts = exposedPorts
         self.hostConfig = hostConfig
-        self.healthcheck = healthcheck
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -34,7 +31,6 @@ public struct CreateContainerRequest: Codable, Sendable {
         case cmd = "Cmd"
         case exposedPorts = "ExposedPorts"
         case hostConfig = "HostConfig"
-        case healthcheck = "Healthcheck"
     }
 }
 
@@ -72,36 +68,6 @@ public struct PortBinding: Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case hostIp = "HostIp"
         case hostPort = "HostPort"
-    }
-}
-
-public struct Healthcheck: Codable, Sendable {
-    public var test: [String]?
-    public var interval: Int?
-    public var timeout: Int?
-    public var retries: Int?
-    public var startPeriod: Int?
-
-    public init(
-        test: [String]? = nil,
-        interval: Int? = nil,
-        timeout: Int? = nil,
-        retries: Int? = nil,
-        startPeriod: Int? = nil
-    ) {
-        self.test = test
-        self.interval = interval
-        self.timeout = timeout
-        self.retries = retries
-        self.startPeriod = startPeriod
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case test = "Test"
-        case interval = "Interval"
-        case timeout = "Timeout"
-        case retries = "Retries"
-        case startPeriod = "StartPeriod"
     }
 }
 
@@ -188,4 +154,42 @@ public struct PullImageProgress: Codable, Sendable {
     public var id: String?
     public var progress: String?
     public var error: String?
+}
+
+// MARK: - Exec
+
+package struct CreateExecRequest: Codable, Sendable {
+    var cmd: [String]
+    var attachStdout: Bool
+    var attachStderr: Bool
+
+    init(cmd: [String]) {
+        self.cmd = cmd
+        self.attachStdout = true
+        self.attachStderr = true
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case cmd = "Cmd"
+        case attachStdout = "AttachStdout"
+        case attachStderr = "AttachStderr"
+    }
+}
+
+package struct CreateExecResponse: Codable, Sendable {
+    var id: String
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "Id"
+    }
+}
+
+package struct InspectExecResponse: Codable, Sendable {
+    var exitCode: Int32
+    var running: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case exitCode = "ExitCode"
+        case running = "Running"
+    }
 }

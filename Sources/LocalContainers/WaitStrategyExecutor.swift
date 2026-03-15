@@ -22,8 +22,14 @@ package enum WaitStrategyExecutor {
                 timeout: configuration.waitTimeout
             )
         case .healthCheck:
+            guard let healthCheck = configuration.healthCheck else {
+                throw ContainerError.healthCheckFailed(
+                    reason: "Health check wait strategy requires a healthCheck configuration"
+                )
+            }
             try await waitForHealthCheck(
                 container: container,
+                healthCheck: healthCheck,
                 timeout: configuration.waitTimeout,
                 runtime: runtime
             )
@@ -64,25 +70,45 @@ package enum WaitStrategyExecutor {
 
     private static func waitForHealthCheck(
         container: RunningContainer,
+        healthCheck: HealthCheckConfig,
         timeout: Duration,
         runtime: any ContainerRuntime
     ) async throws {
-        try await pollWithTimeout(
-            strategy: "healthCheck",
-            timeout: timeout,
-            pollInterval: .seconds(1)
-        ) {
-            let inspection = try await runtime.inspect(container: container)
-            switch inspection.healthStatus {
-            case .healthy:
-                return true
-            case .unhealthy:
-                throw ContainerError.healthCheckFailed(
-                    reason: "Container health check reported unhealthy"
+        if healthCheck.startPeriod > .zero {
+            try await Task.sleep(for: healthCheck.startPeriod)
+        }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw ContainerError.waitStrategyTimedOut(
+                    strategy: "healthCheck",
+                    timeout: timeout
                 )
-            case .starting, .notConfigured:
-                return false
             }
+
+            group.addTask {
+                var failureCount = 0
+                while !Task.isCancelled {
+                    let exitCode = try await runtime.exec(
+                        command: healthCheck.test,
+                        in: container
+                    )
+                    if exitCode == 0 {
+                        return
+                    }
+                    failureCount += 1
+                    if failureCount >= healthCheck.retries {
+                        throw ContainerError.healthCheckFailed(
+                            reason: "Health check failed after \(failureCount) consecutive attempts"
+                        )
+                    }
+                    try await Task.sleep(for: healthCheck.interval)
+                }
+            }
+
+            try await group.next()
+            group.cancelAll()
         }
     }
 

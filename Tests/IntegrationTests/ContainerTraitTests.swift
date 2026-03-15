@@ -98,6 +98,5 @@ struct ContainerTraitTests {
 
         let inspection = try await runtime.inspect(container: container)
         #expect(inspection.isRunning == true)
-        #expect(inspection.healthStatus == .notConfigured)
     }
 }

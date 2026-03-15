@@ -54,6 +54,12 @@ public struct ContainerizationContainerRuntime: ContainerRuntime {
         )
     }
 
+    public func exec(command: [String], in container: RunningContainer) async throws -> Int32 {
+        throw ContainerError.runtimeError(
+            "ContainerizationContainerRuntime.exec not yet implemented"
+        )
+    }
+
     public func inspect(container: RunningContainer) async throws -> ContainerInspection {
         throw ContainerError.runtimeError(
             "ContainerizationContainerRuntime.inspect not yet implemented"

@@ -65,14 +65,17 @@ public struct DockerContainerRuntime: ContainerRuntime {
 
     /// Maps a Docker inspect response to a ``ContainerInspection``.
     func mapInspection(_ response: InspectContainerResponse) -> ContainerInspection {
-        let healthStatus: HealthStatus =
-            switch response.state.health?.status {
-            case "healthy": .healthy
-            case "unhealthy": .unhealthy
-            case "starting": .starting
-            default: .notConfigured
-            }
-        return ContainerInspection(isRunning: response.state.running, healthStatus: healthStatus)
+        ContainerInspection(isRunning: response.state.running)
+    }
+
+    public func exec(command: [String], in container: RunningContainer) async throws -> Int32 {
+        let execId = try await client.createExec(
+            containerId: container.id,
+            command: command
+        )
+        try await client.startExec(id: execId)
+        let response = try await client.inspectExec(id: execId)
+        return response.exitCode
     }
 
     public func logs(for container: RunningContainer) async throws -> String {
@@ -147,17 +150,6 @@ public struct DockerContainerRuntime: ContainerRuntime {
             binds.append(bind)
         }
 
-        var healthcheck: Healthcheck?
-        if let hc = config.healthCheck {
-            healthcheck = Healthcheck(
-                test: hc.test,
-                interval: Int(hc.interval.components.seconds) * 1_000_000_000,
-                timeout: Int(hc.timeout.components.seconds) * 1_000_000_000,
-                retries: hc.retries,
-                startPeriod: Int(hc.startPeriod.components.seconds) * 1_000_000_000
-            )
-        }
-
         return CreateContainerRequest(
             image: config.image,
             env: env.isEmpty ? nil : env,
@@ -166,8 +158,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
             hostConfig: HostConfig(
                 portBindings: portBindings.isEmpty ? nil : portBindings,
                 binds: binds.isEmpty ? nil : binds
-            ),
-            healthcheck: healthcheck
+            )
         )
     }
 }
