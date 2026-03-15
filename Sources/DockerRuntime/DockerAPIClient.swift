@@ -159,8 +159,6 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Create an exec instance in a container and return its ID.
     package func createExec(containerId: String, command: [String]) async throws -> String {
-        logger.info("Creating exec", metadata: ["container": "\(containerId)"])
-
         let url = try apiURL("/containers/\(containerId)/exec")
         var request = HTTPClientRequest(url: url)
         request.method = .POST
@@ -172,12 +170,20 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
         let responseBody = try await executeRequest(request)
         let response = try JSONDecoder().decode(CreateExecResponse.self, from: responseBody)
+        logger.info(
+            "Created exec",
+            metadata: [
+                "execId": "\(response.id)",
+                "container": "\(containerId)",
+                "command": "\(command)",
+            ]
+        )
         return response.id
     }
 
     /// Start an exec instance and wait for it to complete.
     package func startExec(id: String) async throws {
-        logger.info("Starting exec", metadata: ["id": "\(id)"])
+        logger.info("Starting exec", metadata: ["execId": "\(id)"])
 
         let url = try apiURL("/exec/\(id)/start")
         var request = HTTPClientRequest(url: url)
@@ -193,7 +199,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Inspect an exec instance to read the exit code.
     package func inspectExec(id: String) async throws -> InspectExecResponse {
-        logger.info("Inspecting exec", metadata: ["id": "\(id)"])
+        logger.info("Inspecting exec", metadata: ["execId": "\(id)"])
 
         let url = try apiURL("/exec/\(id)/json")
         var request = HTTPClientRequest(url: url)
