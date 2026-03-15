@@ -97,6 +97,37 @@ struct DockerAPITypesTests {
         #expect(udp?.hostPort == 32769)
         #expect(udp?.protocol == .udp)
     }
+    @Test("CreateExecRequest encodes to expected JSON keys")
+    func encodeCreateExecRequest() throws {
+        let request = CreateExecRequest(cmd: ["cat", "/tmp/health"])
+        let data = try JSONEncoder().encode(request)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+
+        #expect(json?["Cmd"] as? [String] == ["cat", "/tmp/health"])
+        #expect(json?["AttachStdout"] as? Bool == true)
+        #expect(json?["AttachStderr"] as? Bool == true)
+    }
+
+    @Test("CreateExecResponse decodes from JSON")
+    func decodeCreateExecResponse() throws {
+        let json = #"{"Id":"exec-abc123"}"#
+        let response = try JSONDecoder().decode(
+            CreateExecResponse.self,
+            from: Data(json.utf8)
+        )
+        #expect(response.id == "exec-abc123")
+    }
+
+    @Test("InspectExecResponse decodes from JSON")
+    func decodeInspectExecResponse() throws {
+        let json = #"{"ExitCode":42,"Running":false}"#
+        let response = try JSONDecoder().decode(
+            InspectExecResponse.self,
+            from: Data(json.utf8)
+        )
+        #expect(response.exitCode == 42)
+        #expect(response.running == false)
+    }
 }
 
 // Minimal AnyCodable for JSON round-trip verification

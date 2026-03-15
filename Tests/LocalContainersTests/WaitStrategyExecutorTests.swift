@@ -219,6 +219,33 @@ struct HealthCheckStrategyTests {
         startPeriod: .zero
     )
 
+    @Test("Health check throws when healthCheck config is nil")
+    func healthCheckMissingConfig() async {
+        let runtime = makeNoOpMock()
+
+        let container = RunningContainer(id: "test-hc-nil", name: "test", image: "test:latest")
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .healthCheck,
+            waitTimeout: .seconds(5)
+        )
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .healthCheckFailed = containerError
+            else {
+                return false
+            }
+            return true
+        }
+    }
+
     @Test("Health check succeeds after non-zero then zero exit code")
     func healthCheckSucceeds() async throws {
         var expectations = MockTestContainerRuntime.Expectations()
