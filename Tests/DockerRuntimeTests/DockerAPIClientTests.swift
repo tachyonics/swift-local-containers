@@ -296,6 +296,79 @@ struct ErrorHandlingTests {
     }
 }
 
+// MARK: - Exec
+
+@Suite("DockerAPIClient.exec")
+struct ExecTests {
+    @Test("createExec sends POST and returns exec ID")
+    func createExec() async throws {
+        let body = #"{"Id":"exec-abc123"}"#
+        let (client, mock) = makeClient(returning: makeResponse(status: .created, body: body))
+
+        let execId = try await client.createExec(
+            containerId: "container-1",
+            command: ["cat", "/tmp/health"]
+        )
+
+        #expect(execId == "exec-abc123")
+
+        verify(mock).execute(
+            .matching { request in
+                request.method == .POST
+                    && request.url.contains("/containers/container-1/exec")
+            },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("startExec sends POST to exec start endpoint")
+    func startExec() async throws {
+        let (client, mock) = makeClient(returning: makeResponse(status: .ok, body: ""))
+
+        try await client.startExec(id: "exec-abc123")
+
+        verify(mock).execute(
+            .matching { request in
+                request.method == .POST
+                    && request.url.contains("/exec/exec-abc123/start")
+            },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("inspectExec returns exit code")
+    func inspectExec() async throws {
+        let body = #"{"ExitCode":0,"Running":false}"#
+        let (client, mock) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        let response = try await client.inspectExec(id: "exec-abc123")
+
+        #expect(response.exitCode == 0)
+        #expect(response.running == false)
+
+        verify(mock).execute(
+            .matching { request in
+                request.method == .GET
+                    && request.url.contains("/exec/exec-abc123/json")
+            },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("inspectExec returns non-zero exit code")
+    func inspectExecNonZero() async throws {
+        let body = #"{"ExitCode":137,"Running":false}"#
+        let (client, _) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        let response = try await client.inspectExec(id: "exec-def456")
+
+        #expect(response.exitCode == 137)
+    }
+}
+
 // MARK: - containerLogs
 
 @Suite("DockerAPIClient.containerLogs")

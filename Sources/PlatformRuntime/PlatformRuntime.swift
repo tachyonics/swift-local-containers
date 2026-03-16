@@ -47,6 +47,10 @@ public struct PlatformRuntime: ContainerRuntime {
         try await underlying.removeContainer(container)
     }
 
+    public func exec(command: [String], in container: RunningContainer) async throws -> Int32 {
+        try await underlying.exec(command: command, in: container)
+    }
+
     public func inspect(container: RunningContainer) async throws -> ContainerInspection {
         try await underlying.inspect(container: container)
     }

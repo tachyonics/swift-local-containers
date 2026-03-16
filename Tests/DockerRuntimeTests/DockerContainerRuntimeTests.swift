@@ -17,7 +17,6 @@ struct DockerContainerRuntimeBuildRequestTests {
         #expect(request.env == nil)
         #expect(request.cmd == nil)
         #expect(request.exposedPorts == nil)
-        #expect(request.healthcheck == nil)
         #expect(request.hostConfig?.portBindings == nil)
         #expect(request.hostConfig?.binds == nil)
     }
@@ -99,89 +98,19 @@ struct DockerContainerRuntimeBuildRequestTests {
         #expect(binds?.contains("/config:/etc/config:ro") == true)
     }
 
-    @Test("Health check is converted with nanosecond intervals")
-    func healthCheck() {
-        let config = ContainerConfiguration(
-            image: "app",
-            healthCheck: HealthCheckConfig(
-                test: ["CMD", "curl", "-f", "http://localhost/"],
-                interval: .seconds(10),
-                timeout: .seconds(5),
-                retries: 3,
-                startPeriod: .seconds(2)
-            )
-        )
-        let request = runtime.buildCreateRequest(from: config)
-
-        #expect(request.healthcheck?.test == ["CMD", "curl", "-f", "http://localhost/"])
-        #expect(request.healthcheck?.interval == 10_000_000_000)
-        #expect(request.healthcheck?.timeout == 5_000_000_000)
-        #expect(request.healthcheck?.retries == 3)
-        #expect(request.healthcheck?.startPeriod == 2_000_000_000)
-    }
-
-    @Test("mapInspection maps healthy status")
-    func mapInspectionHealthy() {
+    @Test("mapInspection reflects running state")
+    func mapInspectionRunning() {
         let response = InspectContainerResponse(
             id: "c1",
-            name: "test",
-            state: .init(
-                status: "running",
-                running: true,
-                health: .init(status: "healthy")
-            ),
-            networkSettings: .init()
-        )
-        let result = runtime.mapInspection(response)
-        #expect(result.isRunning == true)
-        #expect(result.healthStatus == .healthy)
-    }
-
-    @Test("mapInspection maps unhealthy status")
-    func mapInspectionUnhealthy() {
-        let response = InspectContainerResponse(
-            id: "c2",
-            name: "test",
-            state: .init(
-                status: "running",
-                running: true,
-                health: .init(status: "unhealthy")
-            ),
-            networkSettings: .init()
-        )
-        let result = runtime.mapInspection(response)
-        #expect(result.healthStatus == .unhealthy)
-    }
-
-    @Test("mapInspection maps starting status")
-    func mapInspectionStarting() {
-        let response = InspectContainerResponse(
-            id: "c3",
-            name: "test",
-            state: .init(
-                status: "running",
-                running: true,
-                health: .init(status: "starting")
-            ),
-            networkSettings: .init()
-        )
-        let result = runtime.mapInspection(response)
-        #expect(result.healthStatus == .starting)
-    }
-
-    @Test("mapInspection defaults to notConfigured when no health check")
-    func mapInspectionNoHealth() {
-        let response = InspectContainerResponse(
-            id: "c4",
             name: "test",
             state: .init(status: "running", running: true, health: nil),
             networkSettings: .init()
         )
         let result = runtime.mapInspection(response)
-        #expect(result.healthStatus == .notConfigured)
+        #expect(result.isRunning == true)
     }
 
-    @Test("mapInspection reflects running state")
+    @Test("mapInspection reflects not-running state")
     func mapInspectionNotRunning() {
         let response = InspectContainerResponse(
             id: "c5",

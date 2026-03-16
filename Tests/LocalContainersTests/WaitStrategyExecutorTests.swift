@@ -19,6 +19,7 @@ protocol TestContainerRuntime: ContainerRuntime {
     func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer
     func stopContainer(_ container: RunningContainer) async throws
     func removeContainer(_ container: RunningContainer) async throws
+    func exec(command: [String], in container: RunningContainer) async throws -> Int32
     func inspect(container: RunningContainer) async throws -> ContainerInspection
     func logs(for container: RunningContainer) async throws -> String
 }
@@ -34,8 +35,9 @@ private func makeNoOpMock() -> MockTestContainerRuntime {
     when(expectations.removeContainer(.any), complete: .withSuccess)
     when(
         expectations.inspect(container: .any),
-        return: ContainerInspection(isRunning: true, healthStatus: .healthy)
+        return: ContainerInspection(isRunning: true)
     )
+    when(expectations.exec(command: .any, in: .any), return: Int32(0))
     when(expectations.logs(for: .any), return: "")
     return MockTestContainerRuntime(expectations: expectations)
 }
@@ -209,24 +211,53 @@ struct PortStrategyTests {
 
 @Suite("WaitStrategyExecutor - HealthCheck")
 struct HealthCheckStrategyTests {
-    @Test("Health check succeeds after starting then healthy")
+    private static let healthCheck = HealthCheckConfig(
+        test: ["CMD", "curl", "-f", "http://localhost/"],
+        interval: .milliseconds(100),
+        timeout: .seconds(5),
+        retries: 3,
+        startPeriod: .zero
+    )
+
+    @Test("Health check throws when healthCheck config is nil")
+    func healthCheckMissingConfig() async {
+        let runtime = makeNoOpMock()
+
+        let container = RunningContainer(id: "test-hc-nil", name: "test", image: "test:latest")
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .healthCheck,
+            waitTimeout: .seconds(5)
+        )
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .healthCheckFailed = containerError
+            else {
+                return false
+            }
+            return true
+        }
+    }
+
+    @Test("Health check succeeds after non-zero then zero exit code")
     func healthCheckSucceeds() async throws {
         var expectations = MockTestContainerRuntime.Expectations()
-        when(
-            expectations.inspect(container: .any),
-            times: 1,
-            return: ContainerInspection(isRunning: true, healthStatus: .starting)
-        )
-        when(
-            expectations.inspect(container: .any),
-            return: ContainerInspection(isRunning: true, healthStatus: .healthy)
-        )
+        when(expectations.exec(command: .any, in: .any), times: 1, return: Int32(1))
+        when(expectations.exec(command: .any, in: .any), return: Int32(0))
         let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-3", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
             image: "test:latest",
             waitStrategy: .healthCheck,
+            healthCheck: Self.healthCheck,
             waitTimeout: .seconds(10)
         )
 
@@ -237,20 +268,27 @@ struct HealthCheckStrategyTests {
         )
     }
 
-    @Test("Health check times out when always starting")
+    @Test("Health check times out when exec always returns non-zero")
     func healthCheckTimesOut() async {
         var expectations = MockTestContainerRuntime.Expectations()
-        when(
-            expectations.inspect(container: .any),
-            times: .unbounded,
-            return: ContainerInspection(isRunning: true, healthStatus: .starting)
-        )
+        // Return non-zero but fewer times than retries threshold so it doesn't
+        // throw healthCheckFailed before the timeout fires
+        when(expectations.exec(command: .any, in: .any), times: .unbounded, return: Int32(1))
         let runtime = MockTestContainerRuntime(expectations: expectations)
+
+        let highRetriesHealthCheck = HealthCheckConfig(
+            test: ["CMD", "curl", "-f", "http://localhost/"],
+            interval: .milliseconds(100),
+            timeout: .seconds(5),
+            retries: 1000,
+            startPeriod: .zero
+        )
 
         let container = RunningContainer(id: "test-4", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
             image: "test:latest",
             waitStrategy: .healthCheck,
+            healthCheck: highRetriesHealthCheck,
             waitTimeout: .seconds(1)
         )
 
@@ -270,19 +308,17 @@ struct HealthCheckStrategyTests {
         }
     }
 
-    @Test("Health check fails on unhealthy")
-    func healthCheckFailsOnUnhealthy() async {
+    @Test("Health check fails after reaching retries threshold")
+    func healthCheckFailsOnRetries() async {
         var expectations = MockTestContainerRuntime.Expectations()
-        when(
-            expectations.inspect(container: .any),
-            return: ContainerInspection(isRunning: true, healthStatus: .unhealthy)
-        )
+        when(expectations.exec(command: .any, in: .any), times: .unbounded, return: Int32(1))
         let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let container = RunningContainer(id: "test-5", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
             image: "test:latest",
             waitStrategy: .healthCheck,
+            healthCheck: Self.healthCheck,
             waitTimeout: .seconds(10)
         )
 
