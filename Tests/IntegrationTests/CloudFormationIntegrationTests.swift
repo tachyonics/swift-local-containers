@@ -14,7 +14,7 @@ struct CFContainers {
 @Suite(
     CFContainers.containerTrait,
     .tags(.integration, .localstack),
-    .enabled(if: dockerAvailable, "Docker is required")
+    .enabled(if: containerRuntimeAvailable, "Container runtime is required")
 )
 struct CloudFormationIntegrationTests {
     let containers = CFContainers()

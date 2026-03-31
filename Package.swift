@@ -17,6 +17,10 @@ let package = Package(
         .library(name: "ContainerMacrosLib", targets: ["ContainerMacrosLib"]),
         .plugin(name: "ContainerCodeGen", targets: ["ContainerCodeGen"]),
     ],
+    traits: [
+        .trait(name: "Containerization",
+               description: "Enable experimental Apple Containerization backend (macOS only)"),
+    ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
@@ -198,6 +202,7 @@ package.targets.append(
         dependencies: [
             "LocalContainers",
             .product(name: "Containerization", package: "containerization"),
+            .product(name: "ContainerizationExtras", package: "containerization"),
             .product(name: "Logging", package: "swift-log"),
         ]
     )
@@ -206,7 +211,8 @@ package.targets.append(
 // Add ContainerizationRuntime as a dependency of PlatformRuntime on macOS
 if let platformIdx = package.targets.firstIndex(where: { $0.name == "PlatformRuntime" }) {
     package.targets[platformIdx].dependencies.append(
-        .targetItem(name: "ContainerizationRuntime", condition: nil)
+        .targetItem(name: "ContainerizationRuntime",
+                     condition: .when(traits: ["Containerization"]))
     )
 }
 #endif

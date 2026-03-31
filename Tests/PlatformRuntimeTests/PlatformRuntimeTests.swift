@@ -5,13 +5,10 @@ import Testing
 @testable import LocalContainers
 @testable import PlatformRuntime
 
-// API tests only run on platforms where PlatformRuntime delegates to Docker,
-// since ContainerizationContainerRuntime is not yet fully implemented.
-#if !canImport(ContainerizationRuntime)
 @Suite(
     "PlatformRuntime API",
-    .tags(.integration, .docker),
-    .enabled(if: dockerAvailable, "Docker is required")
+    .tags(.integration),
+    .enabled(if: containerRuntimeAvailable, "Container runtime is required")
 )
 struct PlatformRuntimeAPITests {
     let runtime = PlatformRuntime()
@@ -93,4 +90,3 @@ struct PlatformRuntimeAPITests {
         #expect(output.contains("hello from PlatformRuntime"))
     }
 }
-#endif

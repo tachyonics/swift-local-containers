@@ -4,71 +4,59 @@ import Logging
 
 /// ``ContainerRuntime`` implementation backed by Apple's Containerization framework.
 ///
-/// Available on macOS 26+ with Apple Silicon. This is currently a stub —
-/// the full implementation will manage lightweight Linux VMs via
-/// the Containerization framework.
+/// Available on macOS 26+ with Apple Silicon. Each container runs as a
+/// lightweight Linux VM with its own IP address via ``VmnetNetwork``.
 public struct ContainerizationContainerRuntime: ContainerRuntime {
-    private let logger: Logger
+    private let manager: ContainerizationManager
 
-    public init(logger: Logger = Logger(label: "ContainerizationContainerRuntime")) {
-        self.logger = logger
+    public init() {
+        self.manager = ContainerizationManager()
     }
 
     public func pullImage(_ reference: String) async throws {
-        logger.info("Pulling image via Containerization", metadata: ["image": "\(reference)"])
-        // TODO: Use Containerization.Image to pull OCI images
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.pullImage not yet implemented"
-        )
+        try await manager.pullImage(reference)
     }
 
     public func startContainer(
         from configuration: ContainerConfiguration
     ) async throws -> RunningContainer {
-        logger.info(
-            "Starting container via Containerization",
-            metadata: ["image": "\(configuration.image)"]
-        )
-        // TODO: Create and start a VM with the container image
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.startContainer not yet implemented"
+        guard #available(macOS 26.0, *) else {
+            throw ContainerError.runtimeError(
+                "ContainerizationContainerRuntime requires macOS 26.0 or later"
+            )
+        }
+        let result = try await manager.startContainer(from: configuration)
+        return RunningContainer(
+            id: result.containerID,
+            name: result.name,
+            image: configuration.image,
+            host: result.host,
+            ports: result.ports
         )
     }
 
     public func stopContainer(_ container: RunningContainer) async throws {
-        logger.info("Stopping container via Containerization", metadata: ["id": "\(container.id)"])
-        // TODO: Stop the VM
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.stopContainer not yet implemented"
-        )
+        try await manager.stopContainer(identifier: container.id)
     }
 
     public func removeContainer(_ container: RunningContainer) async throws {
-        logger.info(
-            "Removing container via Containerization",
-            metadata: ["id": "\(container.id)"]
-        )
-        // TODO: Remove the VM and its resources
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.removeContainer not yet implemented"
-        )
+        try await manager.removeContainer(identifier: container.id)
     }
 
-    public func exec(command: [String], in container: RunningContainer) async throws -> Int32 {
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.exec not yet implemented"
-        )
+    public func exec(
+        command: [String],
+        in container: RunningContainer
+    ) async throws -> Int32 {
+        try await manager.execCommand(command, containerID: container.id)
     }
 
-    public func inspect(container: RunningContainer) async throws -> ContainerInspection {
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.inspect not yet implemented"
-        )
+    public func inspect(
+        container: RunningContainer
+    ) async throws -> ContainerInspection {
+        await manager.inspect(containerID: container.id)
     }
 
     public func logs(for container: RunningContainer) async throws -> String {
-        throw ContainerError.runtimeError(
-            "ContainerizationContainerRuntime.logs not yet implemented"
-        )
+        try await manager.logs(containerID: container.id)
     }
 }
