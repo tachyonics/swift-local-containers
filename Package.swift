@@ -18,8 +18,10 @@ let package = Package(
         .plugin(name: "ContainerCodeGen", targets: ["ContainerCodeGen"]),
     ],
     traits: [
-        .trait(name: "Containerization",
-               description: "Enable experimental Apple Containerization backend (macOS only)"),
+        .trait(
+            name: "Containerization",
+            description: "Enable experimental Apple Containerization backend (macOS only)"
+        )
     ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
@@ -211,8 +213,10 @@ package.targets.append(
 // Add ContainerizationRuntime as a dependency of PlatformRuntime on macOS
 if let platformIdx = package.targets.firstIndex(where: { $0.name == "PlatformRuntime" }) {
     package.targets[platformIdx].dependencies.append(
-        .targetItem(name: "ContainerizationRuntime",
-                     condition: .when(traits: ["Containerization"]))
+        .targetItem(
+            name: "ContainerizationRuntime",
+            condition: .when(traits: ["Containerization"])
+        )
     )
 }
 #endif

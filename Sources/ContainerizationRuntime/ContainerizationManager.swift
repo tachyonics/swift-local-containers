@@ -178,7 +178,8 @@ actor ContainerizationManager {
 
     private func resolveKernel() throws -> Kernel {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
-        let kernelsDir = homeDir
+        let kernelsDir =
+            homeDir
             .appendingPathComponent("Library/Application Support")
             .appendingPathComponent("com.apple.container/kernels")
 
@@ -193,7 +194,8 @@ actor ContainerizationManager {
             at: kernelsDir,
             includingPropertiesForKeys: nil
         )
-        let kernelFiles = contents
+        let kernelFiles =
+            contents
             .filter { $0.lastPathComponent.hasPrefix("vmlinux-") }
             .sorted { $0.lastPathComponent > $1.lastPathComponent }
 
@@ -240,7 +242,8 @@ actor ContainerizationManager {
         }
 
         let domainCandidate = reference[reference.startIndex..<separatorIndex]
-        let looksLikeDomain = domainCandidate.contains(".")
+        let looksLikeDomain =
+            domainCandidate.contains(".")
             || domainCandidate.contains(":")
             || domainCandidate == "localhost"
 

@@ -14,12 +14,16 @@ public let dockerAvailable: Bool = {
 #if canImport(ContainerizationRuntime)
 public let containerizationAvailable: Bool = {
     let homeDir = FileManager.default.homeDirectoryForCurrentUser
-    let kernelsDir = homeDir
+    let kernelsDir =
+        homeDir
         .appendingPathComponent("Library/Application Support")
         .appendingPathComponent("com.apple.container/kernels")
-    guard let contents = try? FileManager.default.contentsOfDirectory(
-        at: kernelsDir, includingPropertiesForKeys: nil
-    ) else { return false }
+    guard
+        let contents = try? FileManager.default.contentsOfDirectory(
+            at: kernelsDir,
+            includingPropertiesForKeys: nil
+        )
+    else { return false }
     return contents.contains { $0.lastPathComponent.hasPrefix("vmlinux-") }
 }()
 #endif
