@@ -115,18 +115,15 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  macOSDocker:
-    name: macOS (Docker)
+  macOS:
+    name: macOS
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
-      - uses: docker/setup-docker-action@v4
       - name: Build
         run: swift build -c release -Xswiftc -strict-concurrency=complete
       - name: Run tests
-        run: swift test
-        env:
-          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+        run: swift test --filter '!/\.integration/'
   # APIBreakage:
   #   runs-on: ubuntu-latest
   #   container:
