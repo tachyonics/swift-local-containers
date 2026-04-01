@@ -2,11 +2,11 @@
 
 ## ContainerizationRuntime
 
-- [ ] Implement `pullImage()` using `Containerization.Image` to pull OCI images
-- [ ] Implement `startContainer()` to create and start a VM with the container image
-- [ ] Implement `stopContainer()` to stop the VM
-- [ ] Implement `removeContainer()` to remove the VM and clean up resources
-- [ ] Implement `ContainerizationManager` actor for VM/image lifecycle
+- [x] Implement `pullImage()` using `Containerization.Image` to pull OCI images
+- [x] Implement `startContainer()` to create and start a VM with the container image
+- [x] Implement `stopContainer()` to stop the VM
+- [x] Implement `removeContainer()` to remove the VM and clean up resources
+- [x] Implement `ContainerizationManager` actor for VM/image lifecycle
 - [ ] Add unit tests for ContainerizationRuntime
 
 ## Wait Strategies

@@ -8,11 +8,20 @@ import ContainerizationRuntime
 /// A ``ContainerRuntime`` that automatically selects the appropriate backend
 /// for the current platform.
 ///
-/// - macOS 26+: Uses ``ContainerizationContainerRuntime`` (Apple Containerization framework)
-/// - Linux: Uses ``DockerContainerRuntime`` (Docker/Podman REST API)
+/// By default, ``DockerContainerRuntime`` is used on all platforms. On macOS,
+/// the experimental Apple Containerization backend can be enabled by activating
+/// the `Containerization` package trait:
 ///
-/// This allows the same test code to run on macOS development machines and
-/// Linux CI without any platform-specific configuration.
+/// ```swift
+/// .package(url: "…/swift-local-containers.git", from: "…",
+///          traits: ["Containerization"])
+/// ```
+///
+/// or via the command line:
+///
+/// ```
+/// swift build --traits Containerization
+/// ```
 public struct PlatformRuntime: ContainerRuntime {
     #if canImport(ContainerizationRuntime)
     private let underlying: ContainerizationContainerRuntime

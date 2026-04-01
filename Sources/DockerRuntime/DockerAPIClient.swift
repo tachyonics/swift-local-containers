@@ -154,7 +154,17 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
         request.headers.add(name: "Host", value: "localhost")
 
         let body = try await executeRequest(request)
-        return demultiplexDockerLogs(body)
+        let demuxed = demultiplexDockerLogs(body)
+        logger.info(
+            "Container logs retrieved",
+            metadata: [
+                "id": "\(id)",
+                "rawBytes": "\(body.readableBytes)",
+                "demuxedLength": "\(demuxed.count)",
+                "tail": "\(String(demuxed.suffix(200)))",
+            ]
+        )
+        return demuxed
     }
 
     /// Create an exec instance in a container and return its ID.

@@ -1,3 +1,4 @@
+import Foundation
 import LocalContainers
 
 /// Pre-configured ``ContainerConfiguration`` builder for LocalStack.
@@ -31,6 +32,12 @@ public struct LocalStackContainer: Sendable {
         var env = environment
         if !services.isEmpty {
             env["SERVICES"] = services.joined(separator: ",")
+        }
+        // Forward auth token from host environment if not explicitly provided
+        if env["LOCALSTACK_AUTH_TOKEN"] == nil,
+            let token = ProcessInfo.processInfo.environment["LOCALSTACK_AUTH_TOKEN"]
+        {
+            env["LOCALSTACK_AUTH_TOKEN"] = token
         }
         // Activate pro features only if a key is provided
         if env["LOCALSTACK_AUTH_TOKEN"] == nil {
