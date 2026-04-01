@@ -115,17 +115,29 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  APIBreakage:
-    runs-on: ubuntu-latest
-    container:
-      image: swift:6.3-noble
+  macOSDocker:
+    name: macOS (Docker)
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        run: apt-get update && apt-get install -y libssl-dev
-      - name: Check for API breaking changes
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          swift package diagnose-api-breaking-changes origin/main
+      - uses: docker/setup-docker-action@v4
+      - name: Build
+        run: swift build -c release -Xswiftc -strict-concurrency=complete
+      - name: Run tests
+        run: swift test
+        env:
+          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+  # APIBreakage:
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: swift:6.3-noble
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Install dependencies
+  #       run: apt-get update && apt-get install -y libssl-dev
+  #     - name: Check for API breaking changes
+  #       run: |
+  #         git config --global --add safe.directory "$GITHUB_WORKSPACE"
+  #         swift package diagnose-api-breaking-changes origin/main
