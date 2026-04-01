@@ -118,7 +118,7 @@ jobs:
   APIBreakage:
     runs-on: ubuntu-latest
     container:
-      image: swift:6.2.4-noble
+      image: swift:6.3-noble
     steps:
       - uses: actions/checkout@v6
         with:

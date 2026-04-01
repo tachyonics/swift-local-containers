@@ -48,8 +48,7 @@ public struct LocalStackContainer: Sendable {
             image: image,
             ports: [PortMapping(containerPort: gatewayPort)],
             environment: env,
-            waitStrategy: .log("Ready."),
-            waitTimeout: .seconds(120)
+            waitStrategy: .log("Ready.")
         )
     }
 }
