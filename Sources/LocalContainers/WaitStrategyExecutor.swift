@@ -1,3 +1,5 @@
+import Logging
+
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -5,8 +7,6 @@ import Glibc
 #elseif canImport(Musl)
 import Musl
 #endif
-
-import Logging
 
 /// Executes a ``WaitStrategy`` against a running container, blocking until
 /// the container is ready or the timeout expires.
