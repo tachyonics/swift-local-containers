@@ -256,7 +256,8 @@ package enum WaitStrategyExecutor {
             omittingEmptySubsequences: false
         )
         // Drop a single trailing empty element from a trailing newline
-        let lines = allLines.last?.isEmpty == true
+        let lines =
+            allLines.last?.isEmpty == true
             ? allLines.dropLast()
             : allLines[...]
         let tail = lines.suffix(count)
