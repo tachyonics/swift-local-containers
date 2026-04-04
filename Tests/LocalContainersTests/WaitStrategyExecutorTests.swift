@@ -111,6 +111,16 @@ struct CheckTCPPortTests {
         let result = WaitStrategyExecutor.checkTCPPort(host: "127.0.0.1", port: port)
         #expect(result == true)
     }
+
+    @Test("Returns false when nothing is listening on port")
+    func noListener() throws {
+        // Bind and immediately close to obtain a port that is very likely unused.
+        let (listenerFD, port) = try createTCPListener()
+        close(listenerFD)
+
+        let result = WaitStrategyExecutor.checkTCPPort(host: "127.0.0.1", port: port)
+        #expect(result == false)
+    }
 }
 
 // MARK: - Port Strategy Tests
@@ -172,6 +182,50 @@ struct PortStrategyTests {
                 return false
             }
             return port == 0
+        }
+    }
+
+    @Test("Port throws containerExitedDuringWait when container exits mid-wait")
+    func portContainerExits() async {
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: false, status: "exited", exitCode: 42)
+        )
+        when(
+            expectations.logs(for: .any),
+            times: .unbounded,
+            return: "boom1\nboom2\n"
+        )
+        let runtime = MockTestContainerRuntime(expectations: expectations)
+
+        let container = RunningContainer(
+            id: "test-port-exit",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: [ResolvedPortMapping(containerPort: 8080, hostPort: 1)]
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .port,
+            waitTimeout: .seconds(5)
+        )
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .containerExitedDuringWait(let exitCode) = containerError
+            else {
+                return false
+            }
+            return exitCode == 42
         }
     }
 
@@ -297,6 +351,128 @@ struct HealthCheckStrategyTests {
         )
 
         let container = RunningContainer(id: "test-4", name: "test", image: "test:latest")
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .healthCheck,
+            healthCheck: highRetriesHealthCheck,
+            waitTimeout: .seconds(1)
+        )
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .waitStrategyTimedOut(let strategy, _) = containerError
+            else {
+                return false
+            }
+            return strategy == "healthCheck"
+        }
+    }
+
+    @Test("Health check throws containerExitedDuringWait when container exits mid-wait")
+    func healthCheckContainerExits() async {
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: false, status: "exited", exitCode: 7)
+        )
+        when(expectations.logs(for: .any), times: .unbounded, return: "crash\n")
+        let runtime = MockTestContainerRuntime(expectations: expectations)
+
+        let container = RunningContainer(id: "test-hc-exit", name: "test", image: "test:latest")
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .healthCheck,
+            healthCheck: Self.healthCheck,
+            waitTimeout: .seconds(5)
+        )
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .containerExitedDuringWait(let exitCode) = containerError
+            else {
+                return false
+            }
+            return exitCode == 7
+        }
+    }
+
+    @Test("Health check honours startPeriod before polling")
+    func healthCheckStartPeriod() async throws {
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true)
+        )
+        when(expectations.exec(command: .any, in: .any), times: .unbounded, return: Int32(0))
+        let runtime = MockTestContainerRuntime(expectations: expectations)
+
+        let startPeriod: Duration = .milliseconds(150)
+        let hc = HealthCheckConfig(
+            test: ["CMD", "true"],
+            interval: .milliseconds(100),
+            timeout: .seconds(5),
+            retries: 3,
+            startPeriod: startPeriod
+        )
+
+        let container = RunningContainer(id: "test-hc-sp", name: "test", image: "test:latest")
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .healthCheck,
+            healthCheck: hc,
+            waitTimeout: .seconds(10)
+        )
+
+        let start = ContinuousClock.now
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
+        let elapsed = ContinuousClock.now - start
+
+        #expect(elapsed >= startPeriod)
+    }
+
+    @Test("Health check timeout emits log tail when logs are non-empty")
+    func healthCheckTimeoutEmitsLogTail() async {
+        var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true)
+        )
+        when(expectations.exec(command: .any, in: .any), times: .unbounded, return: Int32(1))
+        when(
+            expectations.logs(for: .any),
+            times: .unbounded,
+            return: "log-a\nlog-b\nlog-c\n"
+        )
+        let runtime = MockTestContainerRuntime(expectations: expectations)
+
+        let highRetriesHealthCheck = HealthCheckConfig(
+            test: ["CMD", "false"],
+            interval: .milliseconds(100),
+            timeout: .seconds(5),
+            retries: 1000,
+            startPeriod: .zero
+        )
+
+        let container = RunningContainer(id: "test-hc-tail", name: "test", image: "test:latest")
         let config = ContainerConfiguration(
             image: "test:latest",
             waitStrategy: .healthCheck,
