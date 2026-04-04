@@ -44,7 +44,8 @@ struct DockerAPITypesTests {
                 "Name": "/test-container",
                 "State": {
                     "Status": "running",
-                    "Running": true
+                    "Running": true,
+                    "ExitCode": 0
                 },
                 "NetworkSettings": {
                     "Ports": {

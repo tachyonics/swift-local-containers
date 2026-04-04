@@ -1,3 +1,5 @@
+import Logging
+
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -13,13 +15,16 @@ package enum WaitStrategyExecutor {
     package static func waitUntilReady(
         container: RunningContainer,
         configuration: ContainerConfiguration,
-        runtime: any ContainerRuntime
+        runtime: any ContainerRuntime,
+        logger: Logger = Logger(label: "WaitStrategyExecutor")
     ) async throws {
         switch configuration.waitStrategy {
         case .port:
             try await waitForPort(
                 container: container,
-                timeout: configuration.waitTimeout
+                timeout: configuration.waitTimeout,
+                runtime: runtime,
+                logger: logger
             )
         case .healthCheck:
             guard let healthCheck = configuration.healthCheck else {
@@ -31,14 +36,16 @@ package enum WaitStrategyExecutor {
                 container: container,
                 healthCheck: healthCheck,
                 timeout: configuration.waitTimeout,
-                runtime: runtime
+                runtime: runtime,
+                logger: logger
             )
         case .log(let message):
             try await waitForLog(
                 container: container,
                 message: message,
                 timeout: configuration.waitTimeout,
-                runtime: runtime
+                runtime: runtime,
+                logger: logger
             )
         case .fixedDelay(let duration):
             try await Task.sleep(for: duration)
@@ -51,7 +58,9 @@ package enum WaitStrategyExecutor {
 
     private static func waitForPort(
         container: RunningContainer,
-        timeout: Duration
+        timeout: Duration,
+        runtime: any ContainerRuntime,
+        logger: Logger
     ) async throws {
         guard let firstPort = container.ports.first else {
             throw ContainerError.portNotFound(containerPort: 0)
@@ -60,7 +69,10 @@ package enum WaitStrategyExecutor {
         try await pollWithTimeout(
             strategy: "port",
             timeout: timeout,
-            pollInterval: .milliseconds(500)
+            pollInterval: .milliseconds(500),
+            container: container,
+            runtime: runtime,
+            logger: logger
         ) {
             checkTCPPort(host: container.host, port: firstPort.hostPort)
         }
@@ -72,7 +84,8 @@ package enum WaitStrategyExecutor {
         container: RunningContainer,
         healthCheck: HealthCheckConfig,
         timeout: Duration,
-        runtime: any ContainerRuntime
+        runtime: any ContainerRuntime,
+        logger: Logger
     ) async throws {
         if healthCheck.startPeriod > .zero {
             try await Task.sleep(for: healthCheck.startPeriod)
@@ -81,6 +94,12 @@ package enum WaitStrategyExecutor {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 try await Task.sleep(for: timeout)
+                await emitLogTail(
+                    preamble: "Wait strategy 'healthCheck' timed out",
+                    container: container,
+                    runtime: runtime,
+                    logger: logger
+                )
                 throw ContainerError.waitStrategyTimedOut(
                     strategy: "healthCheck",
                     timeout: timeout
@@ -90,6 +109,19 @@ package enum WaitStrategyExecutor {
             group.addTask {
                 var failureCount = 0
                 while !Task.isCancelled {
+                    let inspection = try await runtime.inspect(container: container)
+                    if !inspection.isRunning {
+                        await emitLogTail(
+                            preamble: "Container exited during wait",
+                            container: container,
+                            runtime: runtime,
+                            logger: logger
+                        )
+                        throw ContainerError.containerExitedDuringWait(
+                            exitCode: inspection.exitCode
+                        )
+                    }
+
                     let exitCode = try await runtime.exec(
                         command: healthCheck.test,
                         in: container
@@ -118,12 +150,16 @@ package enum WaitStrategyExecutor {
         container: RunningContainer,
         message: String,
         timeout: Duration,
-        runtime: any ContainerRuntime
+        runtime: any ContainerRuntime,
+        logger: Logger
     ) async throws {
         try await pollWithTimeout(
             strategy: "log",
             timeout: timeout,
-            pollInterval: .seconds(1)
+            pollInterval: .seconds(1),
+            container: container,
+            runtime: runtime,
+            logger: logger
         ) {
             let logs = try await runtime.logs(for: container)
             return logs.contains(message)
@@ -136,12 +172,24 @@ package enum WaitStrategyExecutor {
         strategy: String,
         timeout: Duration,
         pollInterval: Duration,
+        container: RunningContainer,
+        runtime: any ContainerRuntime,
+        logger: Logger,
         condition: @escaping @Sendable () async throws -> Bool
     ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 try await Task.sleep(for: timeout)
-                throw ContainerError.waitStrategyTimedOut(strategy: strategy, timeout: timeout)
+                await emitLogTail(
+                    preamble: "Wait strategy '\(strategy)' timed out",
+                    container: container,
+                    runtime: runtime,
+                    logger: logger
+                )
+                throw ContainerError.waitStrategyTimedOut(
+                    strategy: strategy,
+                    timeout: timeout
+                )
             }
 
             group.addTask {
@@ -149,6 +197,20 @@ package enum WaitStrategyExecutor {
                     if try await condition() {
                         return
                     }
+
+                    let inspection = try await runtime.inspect(container: container)
+                    if !inspection.isRunning {
+                        await emitLogTail(
+                            preamble: "Container exited during wait",
+                            container: container,
+                            runtime: runtime,
+                            logger: logger
+                        )
+                        throw ContainerError.containerExitedDuringWait(
+                            exitCode: inspection.exitCode
+                        )
+                    }
+
                     try await Task.sleep(for: pollInterval)
                 }
             }
@@ -157,6 +219,49 @@ package enum WaitStrategyExecutor {
             try await group.next()
             group.cancelAll()
         }
+    }
+
+    // MARK: - Log Tail
+
+    private static let maxLogTailLines = 20
+
+    private static func emitLogTail(
+        preamble: String,
+        container: RunningContainer,
+        runtime: any ContainerRuntime,
+        logger: Logger
+    ) async {
+        guard let logs = try? await runtime.logs(for: container) else {
+            return
+        }
+        let tail = tailLines(logs, count: maxLogTailLines)
+        guard !tail.isEmpty else { return }
+
+        let lineCount = tail.split(
+            separator: "\n",
+            omittingEmptySubsequences: false
+        ).count
+        logger.error(
+            "\(preamble). Last \(lineCount) log lines:",
+            metadata: ["container": "\(container.id)"]
+        )
+        for line in tail.split(separator: "\n", omittingEmptySubsequences: false) {
+            logger.error("\(line)", metadata: ["container": "\(container.id)"])
+        }
+    }
+
+    static func tailLines(_ string: String, count: Int) -> String {
+        let allLines = string.split(
+            separator: "\n",
+            omittingEmptySubsequences: false
+        )
+        // Drop a single trailing empty element from a trailing newline
+        let lines =
+            allLines.last?.isEmpty == true
+            ? allLines.dropLast()
+            : allLines[...]
+        let tail = lines.suffix(count)
+        return tail.joined(separator: "\n")
     }
 
     // MARK: - TCP Port Check

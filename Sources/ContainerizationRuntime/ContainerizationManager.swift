@@ -125,7 +125,10 @@ actor ContainerizationManager {
 
     func inspect(containerID: String) -> ContainerInspection {
         let isRunning = runningContainers[containerID] != nil
-        return ContainerInspection(isRunning: isRunning)
+        return ContainerInspection(
+            isRunning: isRunning,
+            status: isRunning ? "running" : "exited"
+        )
     }
 
     func execCommand(

@@ -103,23 +103,27 @@ struct DockerContainerRuntimeBuildRequestTests {
         let response = InspectContainerResponse(
             id: "c1",
             name: "test",
-            state: .init(status: "running", running: true, health: nil),
+            state: .init(status: "running", running: true, exitCode: 0, health: nil),
             networkSettings: .init()
         )
         let result = runtime.mapInspection(response)
         #expect(result.isRunning == true)
+        #expect(result.status == "running")
+        #expect(result.exitCode == nil)
     }
 
-    @Test("mapInspection reflects not-running state")
+    @Test("mapInspection reflects not-running state with exit code")
     func mapInspectionNotRunning() {
         let response = InspectContainerResponse(
             id: "c5",
             name: "test",
-            state: .init(status: "exited", running: false, health: nil),
+            state: .init(status: "exited", running: false, exitCode: 1, health: nil),
             networkSettings: .init()
         )
         let result = runtime.mapInspection(response)
         #expect(result.isRunning == false)
+        #expect(result.status == "exited")
+        #expect(result.exitCode == 1)
     }
 
     // MARK: - extractGateway

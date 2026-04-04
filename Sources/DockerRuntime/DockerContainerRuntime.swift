@@ -65,7 +65,11 @@ public struct DockerContainerRuntime: ContainerRuntime {
 
     /// Maps a Docker inspect response to a ``ContainerInspection``.
     func mapInspection(_ response: InspectContainerResponse) -> ContainerInspection {
-        ContainerInspection(isRunning: response.state.running)
+        ContainerInspection(
+            isRunning: response.state.running,
+            status: response.state.status,
+            exitCode: response.state.running ? nil : response.state.exitCode
+        )
     }
 
     public func exec(command: [String], in container: RunningContainer) async throws -> Int32 {
