@@ -108,4 +108,49 @@ struct ContainerErrorTests {
             Issue.record("Expected .containerNotFound")
         }
     }
+
+    @Test("description renders every case")
+    func descriptions() {
+        #expect(
+            ContainerError.imagePullFailed(image: "nginx:latest", reason: "not found").description
+                == "Failed to pull image 'nginx:latest': not found"
+        )
+        #expect(
+            ContainerError.startFailed(reason: "port conflict").description
+                == "Container failed to start: port conflict"
+        )
+        #expect(
+            ContainerError.healthCheckFailed(reason: "timeout").description
+                == "Health check failed: timeout"
+        )
+        #expect(
+            ContainerError.waitStrategyTimedOut(strategy: "port", timeout: .seconds(30))
+                .description
+                == "Wait strategy 'port' timed out after \(Duration.seconds(30))"
+        )
+        #expect(
+            ContainerError.containerExitedDuringWait(exitCode: 137).description
+                == "Container exited unexpectedly with code 137"
+        )
+        #expect(
+            ContainerError.containerExitedDuringWait(exitCode: nil).description
+                == "Container exited unexpectedly"
+        )
+        #expect(
+            ContainerError.portNotFound(containerPort: 8080).description
+                == "No port mapping found for container port 8080"
+        )
+        #expect(
+            ContainerError.runtimeError("boom").description
+                == "Container runtime error: boom"
+        )
+        #expect(
+            ContainerError.setupFailed(step: "bootstrap", reason: "bad").description
+                == "Setup step 'bootstrap' failed: bad"
+        )
+        #expect(
+            ContainerError.containerNotFound(id: "abc123").description
+                == "Container not found: abc123"
+        )
+    }
 }
