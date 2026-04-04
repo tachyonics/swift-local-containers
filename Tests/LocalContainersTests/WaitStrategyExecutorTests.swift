@@ -35,10 +35,11 @@ private func makeNoOpMock() -> MockTestContainerRuntime {
     when(expectations.removeContainer(.any), complete: .withSuccess)
     when(
         expectations.inspect(container: .any),
+        times: .unbounded,
         return: ContainerInspection(isRunning: true)
     )
     when(expectations.exec(command: .any, in: .any), return: Int32(0))
-    when(expectations.logs(for: .any), return: "")
+    when(expectations.logs(for: .any), times: .unbounded, return: "")
     return MockTestContainerRuntime(expectations: expectations)
 }
 
@@ -249,6 +250,11 @@ struct HealthCheckStrategyTests {
     @Test("Health check succeeds after non-zero then zero exit code")
     func healthCheckSucceeds() async throws {
         var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true)
+        )
         when(expectations.exec(command: .any, in: .any), times: 1, return: Int32(1))
         when(expectations.exec(command: .any, in: .any), return: Int32(0))
         let runtime = MockTestContainerRuntime(expectations: expectations)
@@ -273,7 +279,13 @@ struct HealthCheckStrategyTests {
         var expectations = MockTestContainerRuntime.Expectations()
         // Return non-zero but fewer times than retries threshold so it doesn't
         // throw healthCheckFailed before the timeout fires
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true)
+        )
         when(expectations.exec(command: .any, in: .any), times: .unbounded, return: Int32(1))
+        when(expectations.logs(for: .any), return: "")
         let runtime = MockTestContainerRuntime(expectations: expectations)
 
         let highRetriesHealthCheck = HealthCheckConfig(
@@ -311,6 +323,11 @@ struct HealthCheckStrategyTests {
     @Test("Health check fails after reaching retries threshold")
     func healthCheckFailsOnRetries() async {
         var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true)
+        )
         when(expectations.exec(command: .any, in: .any), times: .unbounded, return: Int32(1))
         let runtime = MockTestContainerRuntime(expectations: expectations)
 
@@ -369,6 +386,11 @@ struct LogStrategyTests {
     @Test("Log times out when message not present")
     func logTimesOut() async {
         var expectations = MockTestContainerRuntime.Expectations()
+        when(
+            expectations.inspect(container: .any),
+            times: .unbounded,
+            return: ContainerInspection(isRunning: true)
+        )
         when(expectations.logs(for: .any), times: .unbounded, return: "Starting up...\n")
         let runtime = MockTestContainerRuntime(expectations: expectations)
 
@@ -449,6 +471,44 @@ struct CustomStrategyTests {
 
         let value = await flag.value
         #expect(value == true)
+    }
+}
+
+// MARK: - tailLines Tests
+
+@Suite("WaitStrategyExecutor - tailLines")
+struct TailLinesTests {
+    @Test("Returns last N lines from multi-line string")
+    func lastNLines() {
+        let logs = "line1\nline2\nline3\nline4\nline5"
+        let result = WaitStrategyExecutor.tailLines(logs, count: 3)
+        #expect(result == "line3\nline4\nline5")
+    }
+
+    @Test("Returns full string when fewer lines than count")
+    func fewerLinesThanCount() {
+        let logs = "line1\nline2"
+        let result = WaitStrategyExecutor.tailLines(logs, count: 5)
+        #expect(result == "line1\nline2")
+    }
+
+    @Test("Handles trailing newline without extra empty line")
+    func trailingNewline() {
+        let logs = "line1\nline2\nline3\n"
+        let result = WaitStrategyExecutor.tailLines(logs, count: 2)
+        #expect(result == "line2\nline3")
+    }
+
+    @Test("Returns empty string for empty input")
+    func emptyInput() {
+        let result = WaitStrategyExecutor.tailLines("", count: 5)
+        #expect(result == "")
+    }
+
+    @Test("Single line with no newline")
+    func singleLine() {
+        let result = WaitStrategyExecutor.tailLines("only line", count: 3)
+        #expect(result == "only line")
     }
 }
 

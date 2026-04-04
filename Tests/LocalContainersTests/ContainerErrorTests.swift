@@ -40,13 +40,27 @@ struct ContainerErrorTests {
 
     @Test("waitStrategyTimedOut carries strategy and timeout")
     func waitStrategyTimedOut() {
-        let error = ContainerError.waitStrategyTimedOut(strategy: "port", timeout: .seconds(30))
+        let error = ContainerError.waitStrategyTimedOut(
+            strategy: "port",
+            timeout: .seconds(30)
+        )
 
         if case .waitStrategyTimedOut(let strategy, let timeout) = error {
             #expect(strategy == "port")
             #expect(timeout == .seconds(30))
         } else {
             Issue.record("Expected .waitStrategyTimedOut")
+        }
+    }
+
+    @Test("containerExitedDuringWait carries exit code")
+    func containerExitedDuringWait() {
+        let error = ContainerError.containerExitedDuringWait(exitCode: 1)
+
+        if case .containerExitedDuringWait(let exitCode) = error {
+            #expect(exitCode == 1)
+        } else {
+            Issue.record("Expected .containerExitedDuringWait")
         }
     }
 

@@ -99,11 +99,13 @@ public struct InspectContainerResponse: Codable, Sendable {
     public struct ContainerState: Codable, Sendable {
         public var status: String
         public var running: Bool
+        public var exitCode: Int32
         public var health: HealthState?
 
         private enum CodingKeys: String, CodingKey {
             case status = "Status"
             case running = "Running"
+            case exitCode = "ExitCode"
             case health = "Health"
         }
     }
