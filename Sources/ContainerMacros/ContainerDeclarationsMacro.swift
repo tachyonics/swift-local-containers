@@ -179,7 +179,10 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                         let templatePath = \(typeName).templatePath(relativeTo: #filePath)
                         return ContainerSpec(
                             LocalStackContainer(
-                                services: \(typeName).requiredServices
+                                services: \(typeName).requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    merging: LocalContainersConfig.values
+                                )
                             ).configuration(),
                             setups: [
                                 CloudFormationSetup(

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import LocalContainers
@@ -53,5 +54,53 @@ struct LocalStackContainerTests {
 
         #expect(config.environment["LOCALSTACK_AUTH_TOKEN"] == "test-token")
         #expect(config.environment["SERVICES"] == "s3")
+    }
+
+    @Test("DEBUG=1 is set when no auth token is provided")
+    func debugWhenNoToken() {
+        let ls = LocalStackContainer()
+        let config = ls.configuration()
+
+        #expect(config.environment["DEBUG"] == "1")
+        #expect(config.environment["LOCALSTACK_AUTH_TOKEN"] == nil)
+    }
+
+    @Test("DEBUG is not overridden when auth token is provided")
+    func noDebugWhenTokenPresent() {
+        let ls = LocalStackContainer(
+            environment: ["LOCALSTACK_AUTH_TOKEN": "t"]
+        )
+        let config = ls.configuration()
+
+        #expect(config.environment["DEBUG"] == nil)
+    }
+
+    @Test("configuration does not read from process environment")
+    func configurationIgnoresProcessEnv() {
+        // LOCALSTACK_AUTH_TOKEN is usually set in the shell for contributors;
+        // the pure `configuration()` must not pick it up implicitly.
+        let ls = LocalStackContainer()
+        let config = ls.configuration()
+
+        #expect(config.environment["LOCALSTACK_AUTH_TOKEN"] == nil)
+    }
+
+    @Test("environmentForwarding merges extras, extras win")
+    func environmentForwardingMerges() {
+        let merged = LocalStackContainer.environmentForwarding(
+            ["NONEXISTENT_KEY_FOR_TEST"],
+            merging: ["NONEXISTENT_KEY_FOR_TEST": "from-extra", "OTHER": "value"]
+        )
+
+        #expect(merged["NONEXISTENT_KEY_FOR_TEST"] == "from-extra")
+        #expect(merged["OTHER"] == "value")
+    }
+
+    @Test("environmentForwarding omits missing keys")
+    func environmentForwardingSkipsMissing() {
+        let merged = LocalStackContainer.environmentForwarding(
+            ["DEFINITELY_NOT_SET_\(UUID().uuidString)"]
+        )
+        #expect(merged.isEmpty)
     }
 }

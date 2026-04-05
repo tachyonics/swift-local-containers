@@ -14,7 +14,11 @@ struct CFContainers {
 @Suite(
     CFContainers.containerTrait,
     .tags(.integration, .localstack),
-    .enabled(if: containerRuntimeAvailable, "Container runtime is required")
+    .enabled(if: containerRuntimeAvailable, "Container runtime is required"),
+    .enabled(
+        if: localStackAuthTokenAvailable,
+        "LOCALSTACK_AUTH_TOKEN is required (set it in the environment or in .local-containers/env)"
+    )
 )
 struct CloudFormationIntegrationTests {
     let containers = CFContainers()

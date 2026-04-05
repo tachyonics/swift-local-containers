@@ -28,18 +28,20 @@ public struct LocalStackContainer: Sendable {
     }
 
     /// Build the ``ContainerConfiguration`` for this LocalStack instance.
+    ///
+    /// The returned configuration uses exactly the ``environment`` passed
+    /// to the initializer, with `SERVICES` derived from ``services`` and
+    /// `DEBUG=1` added when no `LOCALSTACK_AUTH_TOKEN` is present. No
+    /// values are read from the process environment; use
+    /// ``environmentForwarding(_:merging:)`` to opt in to that.
     public func configuration() -> ContainerConfiguration {
         var env = environment
         if !services.isEmpty {
             env["SERVICES"] = services.joined(separator: ",")
         }
-        // Forward auth token from host environment if not explicitly provided
-        if env["LOCALSTACK_AUTH_TOKEN"] == nil,
-            let token = ProcessInfo.processInfo.environment["LOCALSTACK_AUTH_TOKEN"]
-        {
-            env["LOCALSTACK_AUTH_TOKEN"] = token
-        }
-        // Activate pro features only if a key is provided
+        // Enable debug logging when no auth token is provided. LocalStack
+        // requires a token for all usage; DEBUG=1 surfaces the resulting
+        // startup failure clearly in the logs.
         if env["LOCALSTACK_AUTH_TOKEN"] == nil {
             env["DEBUG"] = env["DEBUG"] ?? "1"
         }
@@ -50,5 +52,31 @@ public struct LocalStackContainer: Sendable {
             environment: env,
             waitStrategy: .log("Ready.")
         )
+    }
+
+    /// Builds an environment dictionary by forwarding selected keys from
+    /// the current process environment, optionally merged with extra
+    /// values. Extras take precedence over forwarded values.
+    ///
+    /// Intended to be passed to ``init(image:services:environment:gatewayPort:)``
+    /// when you want to opt in to shell environment forwarding:
+    ///
+    /// ```swift
+    /// LocalStackContainer(
+    ///     environment: LocalStackContainer.environmentForwarding()
+    /// )
+    /// ```
+    public static func environmentForwarding(
+        _ keys: [String] = ["LOCALSTACK_AUTH_TOKEN"],
+        merging extra: [String: String] = [:]
+    ) -> [String: String] {
+        let processEnv = ProcessInfo.processInfo.environment
+        var result: [String: String] = [:]
+        for key in keys {
+            if let value = processEnv[key], !value.isEmpty {
+                result[key] = value
+            }
+        }
+        return result.merging(extra) { _, new in new }
     }
 }
