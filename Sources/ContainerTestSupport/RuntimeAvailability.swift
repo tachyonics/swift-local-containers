@@ -40,5 +40,10 @@ public let containerRuntimeAvailable: Bool = {
 /// environment or from `.local-containers/env`. LocalStack requires an
 /// auth token to start.
 public let localStackAuthTokenAvailable: Bool = {
-    LocalContainersConfig.value(for: "LOCALSTACK_AUTH_TOKEN")?.isEmpty == false
+    if let fromEnv = ProcessInfo.processInfo.environment["LOCALSTACK_AUTH_TOKEN"],
+        !fromEnv.isEmpty
+    {
+        return true
+    }
+    return LocalContainersConfig.value(for: "LOCALSTACK_AUTH_TOKEN")?.isEmpty == false
 }()

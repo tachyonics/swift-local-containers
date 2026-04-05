@@ -180,9 +180,9 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                         return ContainerSpec(
                             LocalStackContainer(
                                 services: \(typeName).requiredServices,
-                                environment: LocalStackContainer.environmentForwarding(
-                                    merging: LocalContainersConfig.values
-                                )
+                                environment: LocalContainersConfig.values.merging(
+                                    LocalStackContainer.environmentForwarding()
+                                ) { _, shell in shell }
                             ).configuration(),
                             setups: [
                                 CloudFormationSetup(
