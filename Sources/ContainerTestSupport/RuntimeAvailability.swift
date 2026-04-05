@@ -1,14 +1,24 @@
 import Foundation
 
 public let dockerAvailable: Bool = {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/bin/sh")
-    process.arguments = ["-c", "docker info"]
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-    try? process.run()
-    process.waitUntilExit()
-    return process.terminationStatus == 0
+    // Standard Linux daemon socket (also what CI jobs typically mount
+    // from the host).
+    if FileManager.default.fileExists(atPath: "/var/run/docker.sock") {
+        return true
+    }
+    // Docker Desktop on macOS.
+    let desktopSocket = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".docker/run/docker.sock").path
+    if FileManager.default.fileExists(atPath: desktopSocket) {
+        return true
+    }
+    // Explicitly configured daemon (remote host, colima, rootless).
+    if let dockerHost = ProcessInfo.processInfo.environment["DOCKER_HOST"],
+        !dockerHost.isEmpty
+    {
+        return true
+    }
+    return false
 }()
 
 #if canImport(ContainerizationRuntime)
