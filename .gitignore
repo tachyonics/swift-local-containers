@@ -14,3 +14,6 @@ DerivedData/
 *.d
 *.dia
 *.swiftdeps
+
+# Local test configuration — secrets and per-developer overrides
+/.local-containers/env

@@ -35,3 +35,24 @@ public let containerRuntimeAvailable: Bool = {
     return dockerAvailable
     #endif
 }()
+
+/// Whether a LocalStack auth token is available, either from the
+/// environment or from `.local-containers/env`. LocalStack requires an
+/// auth token to start.
+public let localStackAuthTokenAvailable: Bool = {
+    isAuthTokenAvailable(
+        fromEnvironment: ProcessInfo.processInfo.environment["LOCALSTACK_AUTH_TOKEN"],
+        fromConfig: LocalContainersConfig.value(for: "LOCALSTACK_AUTH_TOKEN")
+    )
+}()
+
+/// Pure predicate used by ``localStackAuthTokenAvailable``. Exposed for testing.
+func isAuthTokenAvailable(
+    fromEnvironment envValue: String?,
+    fromConfig configValue: String?
+)
+    -> Bool
+{
+    if let envValue, !envValue.isEmpty { return true }
+    return configValue?.isEmpty == false
+}

@@ -92,7 +92,10 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             let templatePath = S3BucketTemplateOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
-                                    services: S3BucketTemplateOutputs.requiredServices
+                                    services: S3BucketTemplateOutputs.requiredServices,
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -172,7 +175,10 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             let templatePath = S3BucketTemplateOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
-                                    services: S3BucketTemplateOutputs.requiredServices
+                                    services: S3BucketTemplateOutputs.requiredServices,
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -321,7 +327,10 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             let templatePath = SomeOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
-                                    services: SomeOutputs.requiredServices
+                                    services: SomeOutputs.requiredServices,
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -480,7 +489,10 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             let templatePath = S3BucketOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
-                                    services: S3BucketOutputs.requiredServices
+                                    services: S3BucketOutputs.requiredServices,
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -584,7 +596,10 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             let templatePath = S3BucketOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
-                                    services: S3BucketOutputs.requiredServices
+                                    services: S3BucketOutputs.requiredServices,
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -666,7 +681,10 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             let templatePath = MyOutputs.templatePath(relativeTo: #filePath)
                             return ContainerSpec(
                                 LocalStackContainer(
-                                    services: MyOutputs.requiredServices
+                                    services: MyOutputs.requiredServices,
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
