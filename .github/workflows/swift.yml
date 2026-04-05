@@ -24,16 +24,23 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libssl-dev curl unzip
       - name: Build
         run: swift build -c release -Xswiftc -strict-concurrency=complete
+      - name: Build tests
+        # -v captures compiler invocations for SwiftLint analyze; redirected
+        # to file to keep the CI log readable.
+        run: swift build --build-tests -v > build.log 2>&1
       - name: Run tests
         env:
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
-        run: swift test -v 2>&1 | tee build.log
+        run: swift test --skip-build
       - name: Install SwiftLint
+        # SwiftLint's prebuilt Linux binary requires a GLIBC only present on 24.04+
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           curl -sL https://github.com/realm/SwiftLint/releases/download/0.63.2/swiftlint_linux_amd64.zip -o swiftlint.zip
           unzip -o swiftlint.zip -d /usr/local/bin
           chmod +x /usr/local/bin/swiftlint
       - name: SwiftLint unused imports
+        if: matrix.os == 'ubuntu-24.04'
         run: swiftlint analyze --strict --quiet --compiler-log-path build.log
   SwiftLint:
     name: SwiftLint version 3.2.1
@@ -104,8 +111,11 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   macOS:
-    name: macOS
-    runs-on: macos-26
+    name: macOS ${{ matrix.os }} / Swift (bundled)
+    strategy:
+      matrix:
+        os: [macos-26]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
       - name: Build
