@@ -168,7 +168,7 @@ actor ContainerizationManager {
             return manager
         }
         let kernel = try resolveKernel()
-        let network = try ContainerManager.VmnetNetwork()
+        let network = try VmnetNetwork()
         let manager = try await ContainerManager(
             kernel: kernel,
             initfsReference: "vminit:latest",
