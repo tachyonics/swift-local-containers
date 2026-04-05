@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  SWIFT_VERSION: "6.2.4"
-
 jobs:
   BuildAndTest:
     name: Linux ${{ matrix.os }} / Swift ${{ matrix.swift-version }}
@@ -46,13 +43,16 @@ jobs:
       - name: GitHub Action for SwiftLint
         uses: norio-nomura/action-swiftlint@3.2.1
   SwiftFormat:
-    name: swift-format
+    name: swift-format / Swift ${{ matrix.swift-version }}
+    strategy:
+      matrix:
+        swift-version: ["6.2.4"]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: SwiftyLab/setup-swift@v1
         with:
-          swift-version: ${{ env.SWIFT_VERSION }}
+          swift-version: ${{ matrix.swift-version }}
       - name: Run swift-format
         run: swift-format format --recursive --in-place .
       - name: Check for formatting differences
@@ -60,12 +60,16 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git diff --exit-code
   Coverage:
+    name: Coverage / Swift ${{ matrix.swift-version }}
+    strategy:
+      matrix:
+        swift-version: ["6.2.4"]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: SwiftyLab/setup-swift@v1
         with:
-          swift-version: ${{ env.SWIFT_VERSION }}
+          swift-version: ${{ matrix.swift-version }}
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y curl libssl-dev
       - name: Run tests with coverage
@@ -116,7 +120,7 @@ jobs:
   #         fetch-depth: 0
   #     - uses: SwiftyLab/setup-swift@v1
   #       with:
-  #         swift-version: ${{ env.SWIFT_VERSION }}
+  #         swift-version: ${{ matrix.swift-version }}
   #     - name: Install dependencies
   #       run: sudo apt-get update && sudo apt-get install -y libssl-dev
   #     - name: Check for API breaking changes
