@@ -26,6 +26,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
         .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
@@ -57,6 +58,8 @@ let package = Package(
                 "LocalContainers",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
             ]
         ),
 
@@ -78,6 +81,7 @@ let package = Package(
                 "LocalContainers",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "NIOCore", package: "swift-nio"),
             ]
         ),
 
