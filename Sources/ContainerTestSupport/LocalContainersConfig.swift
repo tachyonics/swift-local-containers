@@ -35,6 +35,13 @@ public enum LocalContainersConfig {
     private static let loaded: [String: String] = {
         let cwd = FileManager.default.currentDirectoryPath
         let url = URL(fileURLWithPath: cwd).appendingPathComponent(relativePath)
+        return load(from: url)
+    }()
+
+    /// Reads and parses a config file at the given URL. Returns an empty
+    /// dictionary if the file does not exist or cannot be read. Exposed
+    /// for testing.
+    static func load(from url: URL) -> [String: String] {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else {
             return [:]
         }
@@ -43,7 +50,7 @@ public enum LocalContainersConfig {
             result[key] = value
         }
         return result
-    }()
+    }
 
     /// Parses `KEY=VALUE` lines. Exposed for testing.
     static func parse(_ contents: String) -> [(key: String, value: String)] {
