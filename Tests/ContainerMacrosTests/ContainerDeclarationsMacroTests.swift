@@ -93,11 +93,9 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: S3BucketTemplateOutputs.requiredServices,
-                                    environment: LocalContainersConfig.values.merging(
-                                        LocalStackContainer.environmentForwarding()
-                                    ) { _, shell in
-                                        shell
-                                    }
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -178,11 +176,9 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: S3BucketTemplateOutputs.requiredServices,
-                                    environment: LocalContainersConfig.values.merging(
-                                        LocalStackContainer.environmentForwarding()
-                                    ) { _, shell in
-                                        shell
-                                    }
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -332,11 +328,9 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: SomeOutputs.requiredServices,
-                                    environment: LocalContainersConfig.values.merging(
-                                        LocalStackContainer.environmentForwarding()
-                                    ) { _, shell in
-                                        shell
-                                    }
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -496,11 +490,9 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: S3BucketOutputs.requiredServices,
-                                    environment: LocalContainersConfig.values.merging(
-                                        LocalStackContainer.environmentForwarding()
-                                    ) { _, shell in
-                                        shell
-                                    }
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -605,11 +597,9 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: S3BucketOutputs.requiredServices,
-                                    environment: LocalContainersConfig.values.merging(
-                                        LocalStackContainer.environmentForwarding()
-                                    ) { _, shell in
-                                        shell
-                                    }
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(
@@ -692,11 +682,9 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                             return ContainerSpec(
                                 LocalStackContainer(
                                     services: MyOutputs.requiredServices,
-                                    environment: LocalContainersConfig.values.merging(
-                                        LocalStackContainer.environmentForwarding()
-                                    ) { _, shell in
-                                        shell
-                                    }
+                                    environment: LocalStackContainer.environmentForwarding(
+                                        overriding: LocalContainersConfig.values
+                                    )
                                 ).configuration(),
                                 setups: [
                                     CloudFormationSetup(

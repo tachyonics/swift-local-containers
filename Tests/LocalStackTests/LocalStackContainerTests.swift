@@ -85,14 +85,15 @@ struct LocalStackContainerTests {
         #expect(config.environment["LOCALSTACK_AUTH_TOKEN"] == nil)
     }
 
-    @Test("environmentForwarding merges extras, extras win")
-    func environmentForwardingMerges() {
+    @Test("environmentForwarding overlays shell values on baseline")
+    func environmentForwardingOverlays() {
+        // No shell override for these keys, so baseline values pass through.
         let merged = LocalStackContainer.environmentForwarding(
             ["NONEXISTENT_KEY_FOR_TEST"],
-            merging: ["NONEXISTENT_KEY_FOR_TEST": "from-extra", "OTHER": "value"]
+            overriding: ["NONEXISTENT_KEY_FOR_TEST": "from-baseline", "OTHER": "value"]
         )
 
-        #expect(merged["NONEXISTENT_KEY_FOR_TEST"] == "from-extra")
+        #expect(merged["NONEXISTENT_KEY_FOR_TEST"] == "from-baseline")
         #expect(merged["OTHER"] == "value")
     }
 

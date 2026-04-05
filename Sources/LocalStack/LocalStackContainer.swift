@@ -55,28 +55,30 @@ public struct LocalStackContainer: Sendable {
     }
 
     /// Builds an environment dictionary by forwarding selected keys from
-    /// the current process environment, optionally merged with extra
-    /// values. Extras take precedence over forwarded values.
+    /// the current process environment, layered on top of an optional
+    /// baseline. Forwarded shell values win over baseline values.
     ///
     /// Intended to be passed to ``init(image:services:environment:gatewayPort:)``
     /// when you want to opt in to shell environment forwarding:
     ///
     /// ```swift
     /// LocalStackContainer(
-    ///     environment: LocalStackContainer.environmentForwarding()
+    ///     environment: LocalStackContainer.environmentForwarding(
+    ///         overriding: LocalContainersConfig.values
+    ///     )
     /// )
     /// ```
     public static func environmentForwarding(
         _ keys: [String] = ["LOCALSTACK_AUTH_TOKEN"],
-        merging extra: [String: String] = [:]
+        overriding baseline: [String: String] = [:]
     ) -> [String: String] {
         let processEnv = ProcessInfo.processInfo.environment
-        var result: [String: String] = [:]
+        var forwarded: [String: String] = [:]
         for key in keys {
             if let value = processEnv[key], !value.isEmpty {
-                result[key] = value
+                forwarded[key] = value
             }
         }
-        return result.merging(extra) { _, new in new }
+        return baseline.merging(forwarded) { _, shell in shell }
     }
 }
