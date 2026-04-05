@@ -47,7 +47,10 @@ public let localStackAuthTokenAvailable: Bool = {
 }()
 
 /// Pure predicate used by ``localStackAuthTokenAvailable``. Exposed for testing.
-func isAuthTokenAvailable(fromEnvironment envValue: String?, fromConfig configValue: String?)
+func isAuthTokenAvailable(
+    fromEnvironment envValue: String?,
+    fromConfig configValue: String?
+)
     -> Bool
 {
     if let envValue, !envValue.isEmpty { return true }

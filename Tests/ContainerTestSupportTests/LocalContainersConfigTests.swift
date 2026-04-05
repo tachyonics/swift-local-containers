@@ -87,10 +87,10 @@ struct LocalContainersConfigLoadTests {
 
         let fileURL = tempDir.appendingPathComponent("env")
         try """
-            # header comment
-            FOO=bar
-            TOKEN="secret"
-            """.write(to: fileURL, atomically: true, encoding: .utf8)
+        # header comment
+        FOO=bar
+        TOKEN="secret"
+        """.write(to: fileURL, atomically: true, encoding: .utf8)
 
         let result = LocalContainersConfig.load(from: fileURL)
         #expect(result["FOO"] == "bar")
