@@ -8,9 +8,10 @@ import Foundation
 /// double quotes are stripped from values.
 ///
 /// Values are exposed via ``values`` and ``value(for:)`` — they are
-/// *not* injected into the process environment. Callers pass them
-/// explicitly where needed (e.g. via
-/// `LocalStackContainer(environment:)`).
+/// read only from the file, never from the process environment. Callers
+/// are responsible for deciding precedence when merging with other
+/// sources (e.g. via
+/// `LocalStackContainer.environmentForwarding(merging:)`).
 ///
 /// Intended layout:
 /// ```
@@ -23,17 +24,12 @@ public enum LocalContainersConfig {
     public static let relativePath = ".local-containers/env"
 
     /// All key/value pairs loaded from the config file. Empty if the file
-    /// does not exist. Real environment variables always take precedence,
-    /// so any key already present in the process environment replaces the
-    /// value from the file.
+    /// does not exist.
     public static var values: [String: String] { loaded }
 
-    /// Look up a single value, falling back to the process environment.
+    /// Look up a single value from the config file.
     public static func value(for key: String) -> String? {
-        if let fromEnv = ProcessInfo.processInfo.environment[key], !fromEnv.isEmpty {
-            return fromEnv
-        }
-        return loaded[key]
+        loaded[key]
     }
 
     private static let loaded: [String: String] = {
@@ -44,10 +40,7 @@ public enum LocalContainersConfig {
         }
         var result: [String: String] = [:]
         for (key, value) in parse(contents) {
-            // Real env vars win; don't override them from the file.
-            if ProcessInfo.processInfo.environment[key] == nil {
-                result[key] = value
-            }
+            result[key] = value
         }
         return result
     }()
@@ -66,12 +59,10 @@ public enum LocalContainersConfig {
             guard !key.isEmpty else { continue }
             var value = String(line[line.index(after: equalsIndex)...])
                 .trimmingCharacters(in: .whitespaces)
-            if value.count >= 2 {
-                let first = value.first!
-                let last = value.last!
-                if (first == "\"" && last == "\"") || (first == "'" && last == "'") {
-                    value = String(value.dropFirst().dropLast())
-                }
+            if value.count >= 2, let first = value.first, let last = value.last,
+                (first == "\"" && last == "\"") || (first == "'" && last == "'")
+            {
+                value = String(value.dropFirst().dropLast())
             }
             result.append((key, value))
         }
