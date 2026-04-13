@@ -19,13 +19,16 @@ enum ContainerCodeGenTool {
 
     static func main() throws {
         let arguments = CommandLine.arguments
-        guard arguments.count == 3 else {
-            writeStderr("Usage: ContainerCodeGenTool <template.json> <output.swift>")
+        guard arguments.count == 4 else {
+            writeStderr(
+                "Usage: ContainerCodeGenTool <template.json> <output.swift> <struct-name>"
+            )
             throw ExitError.badUsage
         }
 
         let templatePath = arguments[1]
         let outputPath = arguments[2]
+        let typeName = arguments[3]
 
         let data = try Data(contentsOf: URL(fileURLWithPath: templatePath))
         guard let template = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -39,7 +42,6 @@ enum ContainerCodeGenTool {
         }
 
         let fileName = URL(fileURLWithPath: templatePath).lastPathComponent
-        let typeName = typeName(from: fileName)
         let services = inferServices(from: template)
         let outputKeys = extractOutputKeys(from: template)
 
@@ -141,29 +143,10 @@ enum ContainerCodeGenTool {
 
     // MARK: - Naming Helpers
 
-    /// Converts a file name like "s3-sqs-template.json" to "S3SqsTemplateOutputs".
-    private static func typeName(from fileName: String) -> String {
-        let stem = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
-        return pascalCase(stem) + "Outputs"
-    }
-
-    /// Converts "my-stack-name" to "MyStackName".
-    private static func pascalCase(_ string: String) -> String {
-        string
-            .split(separator: "-")
-            .map { capitalizeFirst(String($0)) }
-            .joined()
-    }
-
     /// Converts "BucketName" to "bucketName".
     private static func camelCase(_ string: String) -> String {
         guard let first = string.first else { return string }
         return first.lowercased() + string.dropFirst()
-    }
-
-    private static func capitalizeFirst(_ string: String) -> String {
-        guard let first = string.first else { return string }
-        return first.uppercased() + string.dropFirst()
     }
 
     private static func writeStderr(_ message: String) {
