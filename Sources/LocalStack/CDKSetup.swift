@@ -1,6 +1,8 @@
+import AsyncHTTPClient
 import Foundation
 import LocalContainers
 import Logging
+import NIOCore
 
 /// A ``ContainerSetup`` that runs `cdk bootstrap`, `cdk synth`, and deploys
 /// the resulting template to a LocalStack container.
@@ -8,7 +10,7 @@ import Logging
 /// Use this when the CDK code is the source of truth and you want tests to
 /// always use the latest infrastructure definition.
 public struct CDKSetup: ContainerSetup {
-    /// Directory containing the CDK app.
+    /// Directory containing the CDK app (must contain `cdk.json`).
     public let cdkAppPath: String
 
     /// CDK stack to synthesize.
@@ -52,15 +54,22 @@ public struct CDKSetup: ContainerSetup {
             ]
         )
 
-        // 1. Bootstrap (if enabled)
         if autoBootstrap {
             try await bootstrap(endpoint: endpoint)
+        } else {
+            // CDK's DefaultStackSynthesizer emits a BootstrapVersion Parameter
+            // whose Default resolves an SSM parameter created by `cdk bootstrap`.
+            // We haven't bootstrapped, so LocalStack would reject CreateStack
+            // with "Parameter BootstrapVersion should either have input value
+            // or default value". Stub the SSM parameter ourselves so the
+            // default resolves cleanly and CDK's CheckBootstrapVersion rule
+            // (which rejects v1–v5) passes. Using "20" leaves headroom for
+            // future version bumps.
+            try await stubBootstrapVersion(endpoint: endpoint)
         }
 
-        // 2. Synth
-        let templatePath = try await synth()
+        let templatePath = try await synth(endpoint: endpoint)
 
-        // 3. Deploy template via CloudFormation API
         let cfSetup = CloudFormationSetup(
             templatePath: templatePath,
             stackName: stackName,
@@ -79,21 +88,31 @@ public struct CDKSetup: ContainerSetup {
         try await cfSetup.tearDown(container: container)
     }
 
-    // MARK: - Private
+    // MARK: - CDK CLI Invocations
 
     private func bootstrap(endpoint: String) async throws {
         logger.info("Running cdk bootstrap")
-        let args = "\(cdkCommand) bootstrap --app \(cdkAppPath) aws://000000000000/us-east-1"
-        try await runShell(args, environment: ["AWS_ENDPOINT_URL": endpoint])
+        let arguments =
+            splitCommand(cdkCommand)
+            + ["bootstrap", "aws://000000000000/us-east-1"]
+        try await runShell(
+            arguments,
+            environment: cdkEnvironment(endpoint: endpoint)
+        )
     }
 
-    private func synth() async throws -> String {
+    private func synth(endpoint: String) async throws -> String {
         logger.info("Running cdk synth")
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("cdk-synth-\(UUID().uuidString)")
             .path
-        let args = "\(cdkCommand) synth --app \(cdkAppPath) --output \(tempDir) \(stackName)"
-        try await runShell(args)
+        let arguments =
+            splitCommand(cdkCommand)
+            + ["synth", "--output", tempDir, stackName]
+        try await runShell(
+            arguments,
+            environment: cdkEnvironment(endpoint: endpoint)
+        )
 
         let templatePath = "\(tempDir)/\(stackName).template.json"
         guard FileManager.default.fileExists(atPath: templatePath) else {
@@ -105,15 +124,165 @@ public struct CDKSetup: ContainerSetup {
         return templatePath
     }
 
-    @discardableResult
-    private func runShell(
-        _ command: String,
-        environment: [String: String] = [:]
-    ) async throws -> String {
-        // TODO: Use Foundation.Process to run the command
-        throw ContainerError.setupFailed(
-            step: "CDKSetup",
-            reason: "Shell execution not yet implemented"
+    private func cdkEnvironment(endpoint: String) -> [String: String] {
+        [
+            "AWS_ENDPOINT_URL": endpoint,
+            "CDK_DEFAULT_ACCOUNT": "000000000000",
+            "CDK_DEFAULT_REGION": "us-east-1",
+            "AWS_ACCESS_KEY_ID": "test",
+            "AWS_SECRET_ACCESS_KEY": "test",
+            "AWS_REGION": "us-east-1",
+        ]
+    }
+
+    // MARK: - Bootstrap SSM Stub
+
+    /// Stubs the SSM parameter that `cdk bootstrap` would normally create,
+    /// so templates synthesized with CDK's default synthesizer can be
+    /// deployed to LocalStack without actually running bootstrap.
+    ///
+    /// See the rationale inline in ``setUp(container:)``.
+    private func stubBootstrapVersion(endpoint: String) async throws {
+        logger.info(
+            "Stubbing CDK bootstrap version SSM parameter",
+            metadata: ["parameter": "/cdk-bootstrap/hnb659fds/version"]
         )
+
+        let body = #"""
+            {"Name":"/cdk-bootstrap/hnb659fds/version","Value":"20","Type":"String","Overwrite":true}
+            """#
+
+        var request = HTTPClientRequest(url: endpoint)
+        request.method = .POST
+        request.headers.add(
+            name: "Content-Type",
+            value: "application/x-amz-json-1.1"
+        )
+        request.headers.add(
+            name: "X-Amz-Target",
+            value: "AmazonSSM.PutParameter"
+        )
+        // LocalStack doesn't verify SigV4 signatures; a well-formed dummy
+        // header is sufficient to route the request.
+        request.headers.add(
+            name: "Authorization",
+            value:
+                "AWS4-HMAC-SHA256 Credential=test/20220101/us-east-1/ssm/aws4_request, SignedHeaders=host, Signature=test"
+        )
+        request.body = .bytes(Data(body.utf8))
+
+        let response = try await HTTPClient.shared.execute(
+            request,
+            timeout: .seconds(10)
+        )
+        let responseBody = try await response.body.collect(upTo: 1024 * 1024)
+        let responseText = String(buffer: responseBody)
+
+        guard (200..<300).contains(response.status.code) else {
+            throw ContainerError.setupFailed(
+                step: "CDKSetup",
+                reason:
+                    "Failed to stub bootstrap version SSM parameter: HTTP \(response.status.code): \(responseText)"
+            )
+        }
+    }
+
+    // MARK: - Shell Execution
+
+    /// Splits a whitespace-separated command string (e.g. `"npx cdk"`) into argv.
+    private func splitCommand(_ command: String) -> [String] {
+        command.split(whereSeparator: \.isWhitespace).map(String.init)
+    }
+
+    private func runShell(
+        _ arguments: [String],
+        environment: [String: String] = [:]
+    ) async throws {
+        guard let executable = arguments.first else {
+            throw ContainerError.setupFailed(
+                step: "CDKSetup",
+                reason: "Empty command passed to runShell"
+            )
+        }
+        let remainingArgs = Array(arguments.dropFirst())
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [executable] + remainingArgs
+        process.currentDirectoryURL = URL(fileURLWithPath: cdkAppPath)
+
+        var mergedEnvironment = ProcessInfo.processInfo.environment
+        for (key, value) in environment {
+            mergedEnvironment[key] = value
+        }
+        process.environment = mergedEnvironment
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        logger.debug(
+            "Executing",
+            metadata: [
+                "command": "\(arguments.joined(separator: " "))",
+                "cwd": "\(cdkAppPath)",
+            ]
+        )
+
+        // Install the termination handler BEFORE launching so we don't race
+        // against a fast-exiting process.
+        let exitStatus: Int32 = await withCheckedContinuation {
+            (continuation: CheckedContinuation<Int32, Never>) in
+            process.terminationHandler = { proc in
+                continuation.resume(returning: proc.terminationStatus)
+            }
+            do {
+                try process.run()
+            } catch {
+                // run() failed — terminationHandler will not fire, so resume
+                // ourselves with a sentinel and clear the handler to be safe.
+                process.terminationHandler = nil
+                continuation.resume(returning: -1)
+            }
+        }
+
+        let stdoutData = (try? stdoutPipe.fileHandleForReading.readToEnd()) ?? Data()
+        let stderrData = (try? stderrPipe.fileHandleForReading.readToEnd()) ?? Data()
+        let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
+        let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+
+        if !stdout.isEmpty {
+            logger.debug("stdout", metadata: ["output": "\(stdout)"])
+        }
+        if !stderr.isEmpty {
+            logger.debug("stderr", metadata: ["output": "\(stderr)"])
+        }
+
+        guard exitStatus == 0 else {
+            let combined = [stdout, stderr]
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
+            throw ContainerError.setupFailed(
+                step: "CDKSetup",
+                reason:
+                    "\(arguments.joined(separator: " ")) exited with status \(exitStatus):\n\(combined)"
+            )
+        }
+    }
+}
+
+// MARK: - OutputProducingSetup
+
+extension CDKSetup: OutputProducingSetup {
+    public func fetchOutputs(
+        from container: RunningContainer
+    ) async throws -> [String: String] {
+        let cfSetup = CloudFormationSetup(
+            templatePath: "",
+            stackName: stackName,
+            logger: logger
+        )
+        return try await cfSetup.fetchOutputs(from: container)
     }
 }

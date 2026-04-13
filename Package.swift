@@ -164,6 +164,9 @@ let package = Package(
                 "DockerRuntime",
                 "PlatformRuntime",
             ],
+            exclude: [
+                "Resources/cdk-app"
+            ],
             plugins: [.plugin(name: "ContainerCodeGen")]
         ),
 
