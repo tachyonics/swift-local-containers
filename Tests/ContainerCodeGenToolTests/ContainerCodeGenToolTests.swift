@@ -22,20 +22,23 @@ struct ContainerCodeGenToolTests {
         return toolPath
     }
 
-    private func runTool(templateJSON: String) throws -> String {
+    private func runTool(
+        templateJSON: String,
+        structName: String = "S3BucketTemplateOutputs"
+    ) throws -> String {
         let tempDir = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let inputFile = tempDir.appending(path: "s3-bucket-template.json")
-        let outputFile = tempDir.appending(path: "S3BucketTemplateOutputs.swift")
+        let outputFile = tempDir.appending(path: "\(structName).swift")
 
         try templateJSON.write(to: inputFile, atomically: true, encoding: .utf8)
 
         let process = Process()
         process.executableURL = try toolURL()
-        process.arguments = [inputFile.path, outputFile.path]
+        process.arguments = [inputFile.path, outputFile.path, structName]
 
         let stderr = Pipe()
         process.standardError = stderr

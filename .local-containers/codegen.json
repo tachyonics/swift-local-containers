@@ -1,0 +1,8 @@
+{
+  "templates": [
+    {
+      "source": "Resources/test-s3-bucket.json",
+      "structName": "TestS3BucketOutputs"
+    }
+  ]
+}
