@@ -175,7 +175,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
             }
             return """
                 private enum \(raw: keyName): ContainerKey {
-                    static let spec: ContainerSpec = ContainerSpec(
+                    static let spec = ContainerSpec(
                         LocalStackContainer(
                             services: \(typeName).requiredServices,
                             environment: LocalStackContainer.environmentForwarding(

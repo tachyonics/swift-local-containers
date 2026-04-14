@@ -88,7 +88,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _AwsKey: ContainerKey {
-                        static let spec: ContainerSpec = ContainerSpec(
+                        static let spec = ContainerSpec(
                             LocalStackContainer(
                                 services: S3BucketTemplateOutputs.requiredServices,
                                 environment: LocalStackContainer.environmentForwarding(
@@ -168,7 +168,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _AwsKey: ContainerKey {
-                        static let spec: ContainerSpec = ContainerSpec(
+                        static let spec = ContainerSpec(
                             LocalStackContainer(
                                 services: S3BucketTemplateOutputs.requiredServices,
                                 environment: LocalStackContainer.environmentForwarding(
@@ -317,7 +317,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _AwsKey: ContainerKey {
-                        static let spec: ContainerSpec = ContainerSpec(
+                        static let spec = ContainerSpec(
                             LocalStackContainer(
                                 services: SomeOutputs.requiredServices,
                                 environment: LocalStackContainer.environmentForwarding(
@@ -476,7 +476,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _StackKey: ContainerKey {
-                        static let spec: ContainerSpec = ContainerSpec(
+                        static let spec = ContainerSpec(
                             LocalStackContainer(
                                 services: S3BucketOutputs.requiredServices,
                                 environment: LocalStackContainer.environmentForwarding(
@@ -580,7 +580,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _StackKey: ContainerKey {
-                        static let spec: ContainerSpec = ContainerSpec(
+                        static let spec = ContainerSpec(
                             LocalStackContainer(
                                 services: S3BucketOutputs.requiredServices,
                                 environment: LocalStackContainer.environmentForwarding(
@@ -662,7 +662,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _StackKey: ContainerKey {
-                        static let spec: ContainerSpec = ContainerSpec(
+                        static let spec = ContainerSpec(
                             LocalStackContainer(
                                 services: MyOutputs.requiredServices,
                                 environment: LocalStackContainer.environmentForwarding(
