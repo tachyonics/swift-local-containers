@@ -41,6 +41,30 @@ let package = Package(
 
         .executableTarget(name: "ContainerCodeGenTool"),
 
+        // MARK: - Command Plugins
+
+        .plugin(
+            name: "Bootstrap",
+            capability: .command(
+                intent: .custom(
+                    verb: "bootstrap",
+                    description:
+                        "Run one-time setup for every category declared in .local-containers/codegen.json (currently cdkapps[])"
+                ),
+                permissions: [
+                    .writeToPackageDirectory(
+                        reason:
+                            "Populate setup directories (e.g. node_modules for cdkapps[])"
+                    ),
+                    .allowNetworkConnections(
+                        scope: .all(ports: []),
+                        reason:
+                            "Fetch dependencies from external registries (npm, etc.)"
+                    ),
+                ]
+            )
+        ),
+
         // MARK: - Core
 
         .target(
