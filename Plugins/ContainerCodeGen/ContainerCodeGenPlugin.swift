@@ -48,6 +48,12 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
             }
 
             let outputFile = outputDir.appending(path: "\(entry.structName).swift")
+            // The tool also writes a copy of the template into the plugin
+            // work directory. The generated struct's `templatePath` computed
+            // property resolves to this file via `#filePath` at compile time.
+            let stagedTemplate = outputDir.appending(
+                path: "\(entry.structName).template.json"
+            )
 
             commands.append(
                 .buildCommand(
@@ -60,7 +66,7 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
                         entry.structName,
                     ],
                     inputFiles: [templateURL],
-                    outputFiles: [outputFile]
+                    outputFiles: [outputFile, stagedTemplate]
                 )
             )
         }

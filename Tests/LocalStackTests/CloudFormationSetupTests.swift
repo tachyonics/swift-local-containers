@@ -2,10 +2,10 @@ import Testing
 
 @testable import LocalStack
 
-// MARK: - StackOutputs.templatePath(relativeTo:)
+// MARK: - StackOutputs
 
 private struct FakeOutputs: StackOutputs {
-    static let templateFileName = "my-template.json"
+    static let templatePath = "/tmp/fake/my-template.json"
     static let requiredServices = ["cloudformation", "s3"]
     static let expectedOutputKeys = ["BucketName"]
     let rawOutputs: [String: String]
@@ -16,12 +16,12 @@ private struct FakeOutputs: StackOutputs {
 
 @Suite("StackOutputs")
 struct StackOutputsTests {
-    @Test("templatePath resolves relative to the given file path")
-    func templatePathResolution() {
-        let result = FakeOutputs.templatePath(
-            relativeTo: "/Users/dev/Project/Tests/MyTests.swift"
+    @Test("awsEndpoint reads from _awsEndpoint raw output")
+    func awsEndpointFromRawOutputs() throws {
+        let outputs = try FakeOutputs(
+            rawOutputs: ["_awsEndpoint": "http://localhost:4566"]
         )
-        #expect(result == "/Users/dev/Project/Tests/Resources/my-template.json")
+        #expect(outputs.awsEndpoint == "http://localhost:4566")
     }
 }
 

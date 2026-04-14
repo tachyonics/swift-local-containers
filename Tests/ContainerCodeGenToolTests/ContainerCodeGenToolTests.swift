@@ -76,7 +76,8 @@ struct ContainerCodeGenToolTests {
         let output = try runTool(templateJSON: template)
 
         #expect(output.contains("struct S3BucketTemplateOutputs: StackOutputs, Sendable"))
-        #expect(output.contains("static let templateFileName = \"s3-bucket-template.json\""))
+        #expect(output.contains("public static var templatePath: String"))
+        #expect(output.contains("S3BucketTemplateOutputs.template.json"))
         #expect(output.contains("\"cloudformation\""))
         #expect(output.contains("\"s3\""))
         #expect(output.contains("public let bucketName: String"))

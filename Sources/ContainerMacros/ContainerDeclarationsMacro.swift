@@ -175,23 +175,20 @@ public struct ContainerDeclarationsMacro: MemberMacro {
             }
             return """
                 private enum \(raw: keyName): ContainerKey {
-                    static let spec: ContainerSpec = {
-                        let templatePath = \(typeName).templatePath(relativeTo: #filePath)
-                        return ContainerSpec(
-                            LocalStackContainer(
-                                services: \(typeName).requiredServices,
-                                environment: LocalStackContainer.environmentForwarding(
-                                    overriding: LocalContainersConfig.values
-                                )
-                            ).configuration(),
-                            setups: [
-                                CloudFormationSetup(
-                                    templatePath: templatePath,
-                                    stackName: \(literal: stackName)
-                                ),
-                            ]
-                        )
-                    }()
+                    static let spec = ContainerSpec(
+                        LocalStackContainer(
+                            services: \(typeName).requiredServices,
+                            environment: LocalStackContainer.environmentForwarding(
+                                overriding: LocalContainersConfig.values
+                            )
+                        ).configuration(),
+                        setups: [
+                            CloudFormationSetup(
+                                templatePath: \(typeName).templatePath,
+                                stackName: \(literal: stackName)
+                            ),
+                        ]
+                    )
                 }
                 """
         }

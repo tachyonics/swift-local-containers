@@ -88,23 +88,20 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _AwsKey: ContainerKey {
-                        static let spec: ContainerSpec = {
-                            let templatePath = S3BucketTemplateOutputs.templatePath(relativeTo: #filePath)
-                            return ContainerSpec(
-                                LocalStackContainer(
-                                    services: S3BucketTemplateOutputs.requiredServices,
-                                    environment: LocalStackContainer.environmentForwarding(
-                                        overriding: LocalContainersConfig.values
-                                    )
-                                ).configuration(),
-                                setups: [
-                                    CloudFormationSetup(
-                                        templatePath: templatePath,
-                                        stackName: "my-infra"
-                                    ),
-                                ]
-                            )
-                        }()
+                        static let spec = ContainerSpec(
+                            LocalStackContainer(
+                                services: S3BucketTemplateOutputs.requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    overriding: LocalContainersConfig.values
+                                )
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: S3BucketTemplateOutputs.templatePath,
+                                    stackName: "my-infra"
+                                ),
+                            ]
+                        )
                     }
 
                     static let containerTrait = ContainerTrait(
@@ -171,23 +168,20 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _AwsKey: ContainerKey {
-                        static let spec: ContainerSpec = {
-                            let templatePath = S3BucketTemplateOutputs.templatePath(relativeTo: #filePath)
-                            return ContainerSpec(
-                                LocalStackContainer(
-                                    services: S3BucketTemplateOutputs.requiredServices,
-                                    environment: LocalStackContainer.environmentForwarding(
-                                        overriding: LocalContainersConfig.values
-                                    )
-                                ).configuration(),
-                                setups: [
-                                    CloudFormationSetup(
-                                        templatePath: templatePath,
-                                        stackName: "my-stack"
-                                    ),
-                                ]
-                            )
-                        }()
+                        static let spec = ContainerSpec(
+                            LocalStackContainer(
+                                services: S3BucketTemplateOutputs.requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    overriding: LocalContainersConfig.values
+                                )
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: S3BucketTemplateOutputs.templatePath,
+                                    stackName: "my-stack"
+                                ),
+                            ]
+                        )
                     }
 
                     static let containerTrait = ContainerTrait(
@@ -323,23 +317,20 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _AwsKey: ContainerKey {
-                        static let spec: ContainerSpec = {
-                            let templatePath = SomeOutputs.templatePath(relativeTo: #filePath)
-                            return ContainerSpec(
-                                LocalStackContainer(
-                                    services: SomeOutputs.requiredServices,
-                                    environment: LocalStackContainer.environmentForwarding(
-                                        overriding: LocalContainersConfig.values
-                                    )
-                                ).configuration(),
-                                setups: [
-                                    CloudFormationSetup(
-                                        templatePath: templatePath,
-                                        stackName: "test-stack"
-                                    ),
-                                ]
-                            )
-                        }()
+                        static let spec = ContainerSpec(
+                            LocalStackContainer(
+                                services: SomeOutputs.requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    overriding: LocalContainersConfig.values
+                                )
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: SomeOutputs.templatePath,
+                                    stackName: "test-stack"
+                                ),
+                            ]
+                        )
                     }
 
                     static let containerTrait = ContainerTrait(
@@ -485,23 +476,20 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _StackKey: ContainerKey {
-                        static let spec: ContainerSpec = {
-                            let templatePath = S3BucketOutputs.templatePath(relativeTo: #filePath)
-                            return ContainerSpec(
-                                LocalStackContainer(
-                                    services: S3BucketOutputs.requiredServices,
-                                    environment: LocalStackContainer.environmentForwarding(
-                                        overriding: LocalContainersConfig.values
-                                    )
-                                ).configuration(),
-                                setups: [
-                                    CloudFormationSetup(
-                                        templatePath: templatePath,
-                                        stackName: "infra"
-                                    ),
-                                ]
-                            )
-                        }()
+                        static let spec = ContainerSpec(
+                            LocalStackContainer(
+                                services: S3BucketOutputs.requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    overriding: LocalContainersConfig.values
+                                )
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: S3BucketOutputs.templatePath,
+                                    stackName: "infra"
+                                ),
+                            ]
+                        )
                     }
 
                     static let containerTrait = ContainerTrait(
@@ -592,23 +580,20 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _StackKey: ContainerKey {
-                        static let spec: ContainerSpec = {
-                            let templatePath = S3BucketOutputs.templatePath(relativeTo: #filePath)
-                            return ContainerSpec(
-                                LocalStackContainer(
-                                    services: S3BucketOutputs.requiredServices,
-                                    environment: LocalStackContainer.environmentForwarding(
-                                        overriding: LocalContainersConfig.values
-                                    )
-                                ).configuration(),
-                                setups: [
-                                    CloudFormationSetup(
-                                        templatePath: templatePath,
-                                        stackName: "infra"
-                                    ),
-                                ]
-                            )
-                        }()
+                        static let spec = ContainerSpec(
+                            LocalStackContainer(
+                                services: S3BucketOutputs.requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    overriding: LocalContainersConfig.values
+                                )
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: S3BucketOutputs.templatePath,
+                                    stackName: "infra"
+                                ),
+                            ]
+                        )
                     }
 
                     static let containerTrait = ContainerTrait(
@@ -677,23 +662,20 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     }
 
                     private enum _StackKey: ContainerKey {
-                        static let spec: ContainerSpec = {
-                            let templatePath = MyOutputs.templatePath(relativeTo: #filePath)
-                            return ContainerSpec(
-                                LocalStackContainer(
-                                    services: MyOutputs.requiredServices,
-                                    environment: LocalStackContainer.environmentForwarding(
-                                        overriding: LocalContainersConfig.values
-                                    )
-                                ).configuration(),
-                                setups: [
-                                    CloudFormationSetup(
-                                        templatePath: templatePath,
-                                        stackName: "shared-stack"
-                                    ),
-                                ]
-                            )
-                        }()
+                        static let spec = ContainerSpec(
+                            LocalStackContainer(
+                                services: MyOutputs.requiredServices,
+                                environment: LocalStackContainer.environmentForwarding(
+                                    overriding: LocalContainersConfig.values
+                                )
+                            ).configuration(),
+                            setups: [
+                                CloudFormationSetup(
+                                    templatePath: MyOutputs.templatePath,
+                                    stackName: "shared-stack"
+                                ),
+                            ]
+                        )
                     }
 
                     static let containerTrait = ContainerTrait(
