@@ -42,8 +42,7 @@ enum ContainerCodeGenTool {
         let templateData = try Data(contentsOf: templateURL)
 
         // Always stage the template copy, even if the template has no Outputs
-        // section and we emit an empty Swift file. Keeps SPM's declared-output
-        // tracking honest.
+        // section and we emit an empty Swift file. 
         try templateData.write(to: stagedTemplateURL)
 
         guard let template = try JSONSerialization.jsonObject(with: templateData) as? [String: Any] else {
