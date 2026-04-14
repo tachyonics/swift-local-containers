@@ -30,8 +30,23 @@ enum ContainerCodeGenTool {
         let outputPath = arguments[2]
         let typeName = arguments[3]
 
-        let data = try Data(contentsOf: URL(fileURLWithPath: templatePath))
-        guard let template = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        let templateURL = URL(fileURLWithPath: templatePath)
+        let outputURL = URL(fileURLWithPath: outputPath)
+        let outputDir = outputURL.deletingLastPathComponent()
+
+        // Filename used for the staged template copy. Derived from the
+        // struct name so two entries cannot collide in the work directory.
+        let stagedTemplateFileName = "\(typeName).template.json"
+        let stagedTemplateURL = outputDir.appendingPathComponent(stagedTemplateFileName)
+
+        let templateData = try Data(contentsOf: templateURL)
+
+        // Always stage the template copy, even if the template has no Outputs
+        // section and we emit an empty Swift file. Keeps SPM's declared-output
+        // tracking honest.
+        try templateData.write(to: stagedTemplateURL)
+
+        guard let template = try JSONSerialization.jsonObject(with: templateData) as? [String: Any] else {
             writeStderr("Template is not a JSON object: \(templatePath)")
             throw ExitError.invalidTemplate
         }
@@ -41,7 +56,6 @@ enum ContainerCodeGenTool {
             throw ExitError.invalidTemplate
         }
 
-        let fileName = URL(fileURLWithPath: templatePath).lastPathComponent
         let services = inferServices(from: template)
         let outputKeys = extractOutputKeys(from: template)
 
@@ -53,7 +67,7 @@ enum ContainerCodeGenTool {
 
         let source = generateSource(
             typeName: typeName,
-            fileName: fileName,
+            stagedTemplateFileName: stagedTemplateFileName,
             services: services,
             outputKeys: outputKeys
         )
@@ -95,7 +109,7 @@ enum ContainerCodeGenTool {
 
     private static func generateSource(
         typeName: String,
-        fileName: String,
+        stagedTemplateFileName: String,
         services: [String],
         outputKeys: [String]
     ) -> String {
@@ -103,13 +117,20 @@ enum ContainerCodeGenTool {
         let keysLiteral = outputKeys.map { "\"\($0)\"" }.joined(separator: ", ")
 
         var lines: [String] = []
-        lines.append("// Auto-generated from \(fileName) — do not edit.")
+        lines.append("// Auto-generated — do not edit.")
+        lines.append("import Foundation")
         lines.append("import LocalStack")
         lines.append("")
         lines.append("public struct \(typeName): StackOutputs, Sendable {")
-        lines.append("    public static let templateFileName = \"\(fileName)\"")
         lines.append("    public static let requiredServices: [String] = [\(servicesLiteral)]")
         lines.append("    public static let expectedOutputKeys: [String] = [\(keysLiteral)]")
+        lines.append("")
+        lines.append("    public static var templatePath: String {")
+        lines.append("        URL(fileURLWithPath: #filePath)")
+        lines.append("            .deletingLastPathComponent()")
+        lines.append("            .appendingPathComponent(\"\(stagedTemplateFileName)\")")
+        lines.append("            .path")
+        lines.append("    }")
         lines.append("")
         lines.append("    public let rawOutputs: [String: String]")
 
