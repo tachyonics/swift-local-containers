@@ -24,7 +24,20 @@ enum ContainerCodeGenTool {
     /// so the runtime stub has a service to talk to.
     private static let cdkBootstrapMarker = "/cdk-bootstrap/hnb659fds/version"
 
-    static func main() throws {
+    static func main() {
+        // Every throw site inside `run(...)` writes a helpful message to
+        // stderr before throwing, so we swallow the error here and exit
+        // with a non-zero status. This avoids Swift's runtime appending
+        // the "Fatal error: Error raised at top level" trailer to what
+        // would otherwise be clean, actionable user-facing output.
+        do {
+            try run()
+        } catch {
+            exit(1)
+        }
+    }
+
+    private static func run() throws {
         let arguments = CommandLine.arguments
         guard arguments.count >= 2 else {
             writeStderr(usage)
