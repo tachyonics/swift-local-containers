@@ -22,6 +22,12 @@ jobs:
           swift-version: ${{ matrix.swift-version }}
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev curl unzip
+      - name: Bootstrap
+        # Runs `npm install` in every cdkapps[] entry declared in
+        # .local-containers/codegen.json so the ContainerCodeGen build
+        # plugin can synthesize CDK templates offline under the build
+        # sandbox. Must run before any `swift build`/`swift test`.
+        run: swift package --allow-network-connections all --allow-writing-to-package-directory bootstrap
       - name: Build
         run: swift build -c release -Xswiftc -strict-concurrency=complete
       - name: Build tests
@@ -79,6 +85,8 @@ jobs:
           swift-version: ${{ matrix.swift-version }}
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y curl libssl-dev
+      - name: Bootstrap
+        run: swift package --allow-network-connections all --allow-writing-to-package-directory bootstrap
       - name: Run tests with coverage
         env:
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
@@ -118,6 +126,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
+      - name: Bootstrap
+        # Required because the ContainerCodeGen build plugin runs `cdk
+        # synth` on cdkapps[] entries during `swift build`, and that needs
+        # `node_modules/.bin/cdk` to exist. The integration tests
+        # themselves are filtered out below — but the test module still
+        # *compiles*, so codegen still runs.
+        run: swift package --allow-network-connections all --allow-writing-to-package-directory bootstrap
       - name: Build
         run: swift build -c release -Xswiftc -strict-concurrency=complete
       - name: Run tests

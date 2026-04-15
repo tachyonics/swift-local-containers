@@ -38,7 +38,7 @@ struct ContainerCodeGenToolTests {
 
         let process = Process()
         process.executableURL = try toolURL()
-        process.arguments = [inputFile.path, outputFile.path, structName]
+        process.arguments = ["template", inputFile.path, outputFile.path, structName]
 
         let stderr = Pipe()
         process.standardError = stderr
@@ -111,10 +111,21 @@ struct ContainerCodeGenToolTests {
         #expect(output.contains("\"sqs\""))
     }
 
-    @Test("Exits with error for non-CF JSON")
+    @Test("Exits with error for JSON without a Resources section")
     func nonCFTemplateExitsWithError() throws {
         let template = """
             { "name": "not a template" }
+            """
+
+        #expect(throws: ToolError.self) {
+            try runTool(templateJSON: template)
+        }
+    }
+
+    @Test("Exits with error for template with empty Resources section")
+    func emptyResourcesExitsWithError() throws {
+        let template = """
+            { "Resources": {} }
             """
 
         #expect(throws: ToolError.self) {
