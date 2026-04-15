@@ -81,7 +81,9 @@ struct DatabaseTests {
 
 ### LocalStack with CDK — imperative form
 
-Use the built-in `LocalStackContainer` builder and compose setup steps manually. `CDKSetup` runs `cdk synth` at test time and deploys the result to LocalStack. `CloudFormationSetup` transparently stubs the `/cdk-bootstrap/hnb659fds/version` SSM parameter when it detects a CDK-synthesized template, so you don't need to run a real `cdk bootstrap` against LocalStack.
+Use the built-in `LocalStackContainer` builder and compose setup steps manually. `CDKSetup` runs CDK at test time and deploys to LocalStack. Two operating modes depending on whether your stack uses CDK assets.
+
+**`autoBootstrap: false` (default) — assetless stacks, fast path.** Runs `cdk synth` locally and hands the template to `CloudFormationSetup`, which transparently stubs the `/cdk-bootstrap/hnb659fds/version` SSM parameter before `CreateStack`. Use this for any stack containing only "inline" resources — DynamoDB tables, SQS queues, SNS topics, Step Functions, S3 buckets, IAM roles, etc. No real bootstrap needed.
 
 ```swift
 import LocalContainers
@@ -95,13 +97,49 @@ struct MyLocalStack: ContainerKey {
         setups: [
             CDKSetup(
                 cdkAppPath: "infra",
-                stackName: "MyStack",
-                autoBootstrap: false
+                stackName: "MyStack"
             )
         ]
     )
 }
 ```
+
+**`autoBootstrap: true` — asset-bearing stacks.** Delegates to [`aws-cdk-local`](https://www.npmjs.com/package/aws-cdk-local) (the `cdklocal` CLI), which wraps the regular CDK CLI and routes every AWS API call at LocalStack. Runs `cdklocal bootstrap` to create a real `CDKToolkit` stack inside LocalStack, then `cdklocal deploy` to upload assets and create the application stack. Use this when your stack uses `lambda.Code.fromAsset(...)`, `ecs.ContainerImage.fromAsset(...)`, bundled CloudFormation init scripts, or any other asset type.
+
+```swift
+struct MyStackWithLambda: ContainerKey {
+    static let spec = ContainerSpec(
+        LocalStackContainer().configuration(),  // default services
+        setups: [
+            CDKSetup(
+                cdkAppPath: "infra",
+                stackName: "MyStack",
+                autoBootstrap: true
+            )
+        ]
+    )
+}
+```
+
+Requires `aws-cdk-local` in your CDK app's `devDependencies`. Adds ~30 seconds per test suite for the `cdklocal bootstrap` step.
+
+> [!IMPORTANT]
+> **`aws-cdk` must be pinned to `2.1113.0` or earlier in your CDK app's `package.json`** until `aws-cdk-local` ships a fix for [localstack/aws-cdk-local#126](https://github.com/localstack/aws-cdk-local/issues/126).
+>
+> Versions of `aws-cdk` from `2.1114.0` onward removed the internal module exports (`lib/cdk-toolkit`, `lib/serialize`, `lib/api`, etc.) that `cdklocal` monkey-patches to route CDK calls at LocalStack. With an unpinned `aws-cdk`, `cdklocal bootstrap` fails immediately with `ERR_PACKAGE_PATH_NOT_EXPORTED`. The aws-cdk team has introduced an official replacement, [`@aws-cdk/toolkit-lib`](https://docs.aws.amazon.com/cdk/api/toolkit-lib/), and `cdklocal` is in the process of migrating — once it does, this pin can be removed.
+>
+> This constraint only applies to the `autoBootstrap: true` path. Projects using `autoBootstrap: false` (the default — SSM-stub fast path) or using the declarative `cdkapps[]` flow for assetless stacks are **not** affected and can freely consume any `aws-cdk` version.
+>
+> Example `package.json` snippet:
+>
+> ```json
+> {
+>   "devDependencies": {
+>     "aws-cdk": "2.1113.0",
+>     "aws-cdk-local": "^2.19.0"
+>   }
+> }
+> ```
 
 ### LocalStack with CDK — declarative form (recommended)
 

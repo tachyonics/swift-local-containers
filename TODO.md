@@ -35,7 +35,7 @@
 - [x] Add functional tests for CDK setup steps
 - [x] Make the deployment path transparently stub `/cdk-bootstrap/hnb659fds/version` in LocalStack (via the SSM `PutParameter` API) before `CreateStack`, using a bootstrap version value (`"20"`) that satisfies CDK's `CheckBootstrapVersion` rule. Extracted into `BootstrapVersionStub` and triggered automatically from `CloudFormationSetup` whenever the template body references the CDK bootstrap marker. User CDK apps require **zero** modification to be usable in tests AND production — the same stack definition (with `DefaultStackSynthesizer`) deploys cleanly to LocalStack for tests and to real CloudFormation for prod.
 - [x] The `@LocalStackContainer` macro handles CDK-sourced `StackOutputs` structs uniformly — once `cdkapps[]` synthesizes a template at build time, the runtime deployment path is indistinguishable from a handwritten CF template. No separate `@CDKContainer` macro needed.
-- [ ] Add an opt-in escape hatch for CDK stacks that use assets (Lambda inline code, Docker image assets, etc.) by invoking `cdklocal bootstrap` when `autoBootstrap: true`. This is the "advanced use case" path: slower (~30s for bootstrap) and introduces an `aws-cdk-local` npm dependency, but it's the only way to handle asset-bearing stacks against LocalStack.
+- [x] Opt-in escape hatch for CDK stacks that use assets. `CDKSetup(autoBootstrap: true)` now delegates to `cdklocal` for both bootstrap and deploy — the full CDK flow, with real asset upload to a LocalStack-hosted `CDKToolkit` stack. Scope is intentionally limited to the imperative path: the declarative `cdkapps[]` build plugin still only handles assetless stacks, because the primary use case for this framework is web-app dependency stacks (DDB/SQS/SNS/Step Functions) rather than the web app's own runtime infrastructure. Users with assets opt in by setting `autoBootstrap: true` and adding `aws-cdk-local` to their CDK app's `devDependencies`; everyone else sees no behavior change and no dependency cost.
 
 ### 2. Configurable codegen
 
@@ -58,6 +58,23 @@
 
 - [ ] Add a `ContainerSetup` alternative that runs CDK deploy against a real AWS account and returns the same `StackOutputs` shape — opt-in via env var so it stays off by default in CI.
 - [ ] Document credential + cost tradeoffs.
+
+## Watching & deferred decisions
+
+Items tracked for future reference but not currently scheduled. Each depends on external events (upstream releases, real user demand) or represents a deferred design decision.
+
+- [ ] **Monitor the `aws-cdk-local` migration path.** The `autoBootstrap: true` CDK path relies on `aws-cdk-local` monkey-patching `aws-cdk` internals (`lib/cdk-toolkit`, `lib/serialize`, `lib/api`, etc.) that were removed in `aws-cdk 2.1114.0`. The fixture's `package.json` therefore pins `aws-cdk` to `2.1113.0`; see the `_comment_aws_cdk_pin` field in that file and the callout in the README. Upstream tracking issue: [localstack/aws-cdk-local#126](https://github.com/localstack/aws-cdk-local/issues/126). The aws-cdk team has published an official replacement, [`@aws-cdk/toolkit-lib`](https://docs.aws.amazon.com/cdk/api/toolkit-lib/), that `cdklocal` is expected to migrate to. When that lands: unpin `aws-cdk`, bump `aws-cdk-local`, rerun the integration tests, drop the README callout, revisit the `_comment_aws_cdk_pin` field. If `cdklocal` stalls for more than ~6 months or ships abandoned, consider writing a small Swift-Process-driven wrapper around `@aws-cdk/toolkit-lib` directly and deprecating the `cdklocal` dependency.
+
+- [ ] **Volume mount support in `ContainerConfiguration`.** The framework currently exposes no way to bind-mount host paths into containers. This blocks several real use cases:
+  - **Lambda runtime in LocalStack.** LocalStack spawns *sibling* Docker containers for Lambda execution and needs `/var/run/docker.sock` mounted from the host. The asset-bearing integration test (`CDKSetupImperativeTests.deployAssetBearingCDKApp`) deliberately uses `s3_assets.Asset` rather than `lambda.Function` to sidestep this — the moment the framework grows volume-mount support, we can add a follow-up test that deploys a real Lambda end-to-end.
+  - **Persistent LocalStack state** across container restarts (e.g. mounting a host directory into `/var/lib/localstack` for Pro users who want the bootstrap stack to survive).
+  - **Exposing a local source tree** to a service container, which is a prerequisite for milestone #4 (Dockerfile-based service integration) if we want iterative hot-reload-style workflows.
+
+  Design: add a `volumes: [VolumeMount]` field to `ContainerConfiguration` with `hostPath`, `containerPath`, `readOnly`. Plumb through `DockerContainerRuntime` (via the Docker API's `HostConfig.Binds`) and `ContainerizationRuntime` (if Apple Containerization supports bind mounts in its current API — if not, document the limitation and gracefully no-op on that backend).
+
+- [ ] **Revisit "Option B" — declarative `cdkapps[]` for asset-bearing stacks.** The current declarative path synthesizes CDK templates at build time and stages them for the `@LocalStackContainer` macro. That's clean for assetless stacks but not for asset-bearing ones, because assets need to be staged at deploy time with LocalStack already running — something the build plugin can't coordinate. Users with asset-bearing stacks currently have to drop down to imperative `CDKSetup(autoBootstrap: true)` and lose the typed `StackOutputs` generation.
+
+  **Only worth doing if real user demand materializes.** The primary use case for this framework (web-app dependency stacks — DynamoDB / SQS / SNS / Step Functions) is assetless, so this gap is likely to stay a minority concern. If it becomes a priority: design a manifest section like `cdkappsWithAssets[]` plus a runtime setup type (`CDKLocalDeploySetup`) that invokes `cdklocal` at test time against an app directory path baked into the generated struct. Nontrivial — needs a dedicated design pass that addresses (a) how to statically extract output keys at build time without running `cdklocal synth` under the SwiftPM build sandbox (which can't reach the network), (b) how to plumb the app directory path from build time to test time in a machine-portable way, and (c) how the generated struct's `templatePath`-like mechanism works when the template is constructed at test time rather than build time.
 
 ## Integration Tests
 
