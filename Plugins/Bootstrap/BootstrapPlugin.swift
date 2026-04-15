@@ -61,6 +61,25 @@ struct BootstrapPlugin: CommandPlugin {
             $0 as? SourceModuleTarget
         }
 
+        // SwiftPM's command plugin sandbox only permits writes to the
+        // package directory. npm's default cache (`~/.npm`) is outside
+        // the package, so we redirect npm's cache and logs directories
+        // to the plugin work directory — which is inside `.build/` and
+        // therefore writable under the sandbox. Persists across bootstrap
+        // invocations (same work dir), so cache still works as a cache.
+        let npmCacheDir = context.pluginWorkDirectoryURL
+            .appendingPathComponent("npm-cache")
+        let npmLogsDir = context.pluginWorkDirectoryURL
+            .appendingPathComponent("npm-logs")
+        try FileManager.default.createDirectory(
+            at: npmCacheDir,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: npmLogsDir,
+            withIntermediateDirectories: true
+        )
+
         var totalProcessed = 0
         var totalSkipped = 0
 
@@ -72,7 +91,9 @@ struct BootstrapPlugin: CommandPlugin {
         // in the resolved directory to populate `node_modules/.bin/cdk`.
         let cdkResult = try bootstrapCDKApps(
             entries: manifest.cdkapps ?? [],
-            sourceTargets: sourceTargets
+            sourceTargets: sourceTargets,
+            npmCacheDir: npmCacheDir,
+            npmLogsDir: npmLogsDir
         )
         totalProcessed += cdkResult.processed
         totalSkipped += cdkResult.skipped
@@ -100,7 +121,9 @@ struct BootstrapPlugin: CommandPlugin {
 
     private func bootstrapCDKApps(
         entries: [CDKAppEntry],
-        sourceTargets: [SourceModuleTarget]
+        sourceTargets: [SourceModuleTarget],
+        npmCacheDir: URL,
+        npmLogsDir: URL
     ) throws -> BootstrapResult {
         var processed = 0
         var skipped = 0
@@ -115,18 +138,36 @@ struct BootstrapPlugin: CommandPlugin {
             }
 
             print("bootstrap: installing dependencies in \(cdkAppURL.path)")
-            try runNpmInstall(at: cdkAppURL)
+            try runNpmInstall(
+                at: cdkAppURL,
+                npmCacheDir: npmCacheDir,
+                npmLogsDir: npmLogsDir
+            )
             processed += 1
         }
 
         return BootstrapResult(processed: processed, skipped: skipped)
     }
 
-    private func runNpmInstall(at cdkAppURL: URL) throws {
+    private func runNpmInstall(
+        at cdkAppURL: URL,
+        npmCacheDir: URL,
+        npmLogsDir: URL
+    ) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["npm", "install", "--no-audit", "--no-fund"]
         process.currentDirectoryURL = cdkAppURL
+
+        var env = ProcessInfo.processInfo.environment
+        // Redirect npm cache and logs into the plugin work directory so
+        // they land inside the package directory (which the sandbox permits
+        // writes to). Without this, npm attempts to write to `~/.npm/...`
+        // and fails with EPERM under the command plugin sandbox regardless
+        // of actual filesystem ownership.
+        env["npm_config_cache"] = npmCacheDir.path
+        env["npm_config_logs_dir"] = npmLogsDir.path
+        process.environment = env
 
         try process.run()
         process.waitUntilExit()
