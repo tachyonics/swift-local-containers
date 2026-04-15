@@ -5,7 +5,11 @@ import XCTest
 #if canImport(ContainerMacros)
 @testable import ContainerMacros
 
-private let testMacros: [String: Macro.Type] = [
+// The dictionary is immutable and holds only static metatype references,
+// which are inherently thread-safe. `nonisolated(unsafe)` tells Swift 6's
+// concurrency checker we've verified that — it can't prove it on its own
+// because `any Macro.Type` isn't Sendable.
+nonisolated(unsafe) private let testMacros: [String: Macro.Type] = [
     "Containers": ContainerDeclarationsMacro.self,
     "Container": ContainerMacro.self,
     "LocalStackContainer": LocalStackContainerMacro.self,

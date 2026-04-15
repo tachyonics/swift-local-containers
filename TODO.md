@@ -25,7 +25,7 @@
 - [x] Implement `CloudFormationSetup.createStack()` — POST to CloudFormation API with `Action=CreateStack`
 - [x] Implement `CloudFormationSetup.waitForStack()` — poll `DescribeStacks` until `CREATE_COMPLETE`
 - [x] Implement `CloudFormationSetup.deleteStack()` — POST with `Action=DeleteStack`
-- [ ] Add functional tests for CloudFormation setup steps
+- [x] Add functional tests for CloudFormation setup steps (covered end-to-end by `CloudFormationIntegrationTests`, `CDKIntegrationTests`, and `CDKSetupImperativeTests` against a real LocalStack container)
 
 ## Next Milestones
 
@@ -45,8 +45,8 @@
 
 ### 3. Real-container LocalStack tests
 
-- [ ] Add Docker integration test that exercises setup steps
-- [ ] Replace mock-based LocalStack integration test with a real container test (validates CDK + codegen changes end-to-end).
+- [x] Add Docker integration test that exercises setup steps (`CloudFormationIntegrationTests` deploys a real stack against a LocalStack container via `DockerContainerRuntime`).
+- [x] Replace mock-based LocalStack integration test with a real container test (the original `LocalStackIntegrationTests` was never actually mock-based — it tests endpoint derivation on a hand-built `RunningContainer`. Real-container CDK + CloudFormation coverage now lives in `CDKIntegrationTests`, `CDKSetupImperativeTests`, and `CloudFormationIntegrationTests`).
 
 ### 4. Dockerfile-based service integration (design + build)
 
