@@ -56,17 +56,11 @@ public struct CDKSetup: ContainerSetup {
 
         if autoBootstrap {
             try await bootstrap(endpoint: endpoint)
-        } else {
-            // CDK's DefaultStackSynthesizer emits a BootstrapVersion Parameter
-            // whose Default resolves an SSM parameter created by `cdk bootstrap`.
-            // We haven't bootstrapped, so LocalStack would reject CreateStack
-            // with "Parameter BootstrapVersion should either have input value
-            // or default value". Stub the SSM parameter ourselves so the
-            // default resolves cleanly and CDK's CheckBootstrapVersion rule
-            // (which rejects v1–v5) passes. Using "20" leaves headroom for
-            // future version bumps.
-            try await stubBootstrapVersion(endpoint: endpoint)
         }
+        // When autoBootstrap is false, we rely on CloudFormationSetup's
+        // automatic template inspection to detect the CDK bootstrap
+        // marker and stub the SSM parameter before CreateStack runs.
+        // See ``BootstrapVersionStub`` for the rationale.
 
         let templatePath = try await synth(endpoint: endpoint)
 
@@ -133,58 +127,6 @@ public struct CDKSetup: ContainerSetup {
             "AWS_SECRET_ACCESS_KEY": "test",
             "AWS_REGION": "us-east-1",
         ]
-    }
-
-    // MARK: - Bootstrap SSM Stub
-
-    /// Stubs the SSM parameter that `cdk bootstrap` would normally create,
-    /// so templates synthesized with CDK's default synthesizer can be
-    /// deployed to LocalStack without actually running bootstrap.
-    ///
-    /// See the rationale inline in ``setUp(container:)``.
-    private func stubBootstrapVersion(endpoint: String) async throws {
-        logger.info(
-            "Stubbing CDK bootstrap version SSM parameter",
-            metadata: ["parameter": "/cdk-bootstrap/hnb659fds/version"]
-        )
-
-        let body = #"""
-            {"Name":"/cdk-bootstrap/hnb659fds/version","Value":"20","Type":"String","Overwrite":true}
-            """#
-
-        var request = HTTPClientRequest(url: endpoint)
-        request.method = .POST
-        request.headers.add(
-            name: "Content-Type",
-            value: "application/x-amz-json-1.1"
-        )
-        request.headers.add(
-            name: "X-Amz-Target",
-            value: "AmazonSSM.PutParameter"
-        )
-        // LocalStack doesn't verify SigV4 signatures; a well-formed dummy
-        // header is sufficient to route the request.
-        request.headers.add(
-            name: "Authorization",
-            value:
-                "AWS4-HMAC-SHA256 Credential=test/20220101/us-east-1/ssm/aws4_request, SignedHeaders=host, Signature=test"
-        )
-        request.body = .bytes(Data(body.utf8))
-
-        let response = try await HTTPClient.shared.execute(
-            request,
-            timeout: .seconds(10)
-        )
-        let responseBody = try await response.body.collect(upTo: 1024 * 1024)
-        let responseText = String(buffer: responseBody)
-
-        guard (200..<300).contains(response.status.code) else {
-            throw ContainerError.setupFailed(
-                step: "CDKSetup",
-                reason:
-                    "Failed to stub bootstrap version SSM parameter: HTTP \(response.status.code): \(responseText)"
-            )
-        }
     }
 
     // MARK: - Shell Execution

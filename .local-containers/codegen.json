@@ -4,5 +4,12 @@
       "source": "Resources/test-s3-bucket.json",
       "structName": "TestS3BucketOutputs"
     }
+  ],
+  "cdkapps": [
+    {
+      "source": "Resources/cdk-app",
+      "stackName": "CdkIntegrationTestStack",
+      "structName": "CdkIntegrationTestOutputs"
+    }
   ]
 }

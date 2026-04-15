@@ -45,10 +45,18 @@ public struct CloudFormationSetup: ContainerSetup {
         let templateURL = URL(fileURLWithPath: templatePath)
         let templateBody = try String(contentsOf: templateURL, encoding: .utf8)
 
-        // 2. Create stack via LocalStack CloudFormation HTTP API
+        // 2. If the template was synthesized by CDK, it references the
+        //    `/cdk-bootstrap/hnb659fds/version` SSM parameter. Stub it in
+        //    LocalStack before CreateStack so the default value resolves
+        //    and the CheckBootstrapVersion rule passes.
+        if BootstrapVersionStub.templateNeedsStub(templateBody) {
+            try await BootstrapVersionStub.stub(endpoint: endpoint, logger: logger)
+        }
+
+        // 3. Create stack via LocalStack CloudFormation HTTP API
         try await createStack(endpoint: endpoint, templateBody: templateBody)
 
-        // 3. Wait for stack creation to complete
+        // 4. Wait for stack creation to complete
         try await waitForStack(endpoint: endpoint)
     }
 

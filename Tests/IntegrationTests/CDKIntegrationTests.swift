@@ -1,123 +1,65 @@
+import AsyncHTTPClient
+import ContainerMacrosLib
 import ContainerTestSupport
-import DockerRuntime
 import Foundation
-import LocalContainers
-import LocalStack
+import NIOCore
 import Testing
 
-/// Integration test that exercises `CDKSetup` end-to-end: `cdk synth`
-/// against a tiny fixture app, deploy to LocalStack, read outputs back.
+/// Declarative integration test that exercises the full CDK codegen pipeline:
+/// the `.local-containers/codegen.json` manifest declares a `cdkapps[]` entry
+/// pointing at `Resources/cdk-app`, the `ContainerCodeGen` build plugin runs
+/// `npm install` + `cdk synth` at build time, and the synthesized template
+/// flows through the same staging + `StackOutputs` generation pipeline as a
+/// handwritten CloudFormation template. At test time, `@LocalStackContainer`
+/// wires `CloudFormationSetup` against the staged template — which then
+/// auto-stubs the CDK bootstrap SSM parameter because the template body
+/// contains the `/cdk-bootstrap/hnb659fds/version` marker.
 ///
-/// The `cdk bootstrap` step is intentionally disabled — bootstrap against
-/// LocalStack is flaky without `cdklocal`, and a basic S3-only stack does
-/// not need a bootstrap stack present.
+/// The imperative `CDKSetup` path is covered separately by
+/// `CDKSetupImperativeTests.swift`.
+@Containers
+struct CDKContainers {
+    @LocalStackContainer(stackName: "cdk-integration-test")
+    var cdkStack: CdkIntegrationTestOutputs
+}
+
 @Suite(
+    CDKContainers.containerTrait,
     .tags(.integration, .localstack),
+    .enabled(if: containerRuntimeAvailable, "Container runtime is required"),
     .enabled(
-        if: dockerAvailable && npmAvailable,
-        "Docker and npm are required"
+        if: localStackAuthTokenAvailable,
+        "LOCALSTACK_AUTH_TOKEN is required (set it in the environment or in .local-containers/env)"
     )
 )
 struct CDKIntegrationTests {
-    @Test("CDKSetup synthesizes a CDK app, deploys it to LocalStack, and reads outputs")
-    func deployCDKApp() async throws {
-        let fixtureURL = cdkFixtureURL()
-        try ensureCDKDependenciesInstalled(at: fixtureURL)
+    let containers = CDKContainers()
 
-        let runtime = DockerContainerRuntime()
-        // `ssm` is required because CDKSetup stubs the bootstrap version
-        // SSM parameter before deploying. See CDKSetup.stubBootstrapVersion.
-        let config = LocalStackContainer(
-            services: ["s3", "cloudformation", "ssm"],
-            environment: LocalStackContainer.environmentForwarding(
-                overriding: LocalContainersConfig.values
-            )
-        ).configuration()
+    @Test("Deploys CDK-synthesized stack, retrieves outputs, and interacts with S3 bucket")
+    func deployAndInteract() async throws {
+        let cdkStack = containers.cdkStack
+        #expect(!cdkStack.bucketName.isEmpty)
 
-        try await runtime.pullImage(config.image)
-        let container = try await runtime.startContainer(from: config)
+        let objectUrl = "\(cdkStack.awsEndpoint)/\(cdkStack.bucketName)/test-key"
 
-        defer {
-            Task {
-                try? await runtime.stopContainer(container)
-                try? await runtime.removeContainer(container)
-            }
-        }
-
-        try await WaitStrategyExecutor.waitUntilReady(
-            container: container,
-            configuration: config,
-            runtime: runtime
+        // PUT an object into the bucket via LocalStack S3 API
+        var putRequest = HTTPClientRequest(url: objectUrl)
+        putRequest.method = .PUT
+        putRequest.body = .bytes(Data("hello from cdk integration test".utf8))
+        let putResponse = try await HTTPClient.shared.execute(
+            putRequest,
+            timeout: .seconds(10)
         )
+        #expect(putResponse.status == .ok)
 
-        let setup = CDKSetup(
-            cdkAppPath: fixtureURL.path,
-            stackName: "CdkIntegrationTestStack",
-            autoBootstrap: false
+        // GET it back and verify
+        var getRequest = HTTPClientRequest(url: objectUrl)
+        getRequest.method = .GET
+        let getResponse = try await HTTPClient.shared.execute(
+            getRequest,
+            timeout: .seconds(10)
         )
-
-        try await setup.setUp(container: container)
-        defer {
-            Task { try? await setup.tearDown(container: container) }
-        }
-
-        let outputs = try await setup.fetchOutputs(from: container)
-        #expect(outputs["BucketName"] == "cdk-integration-test-bucket")
-        #expect(outputs["_awsEndpoint"]?.isEmpty == false)
-    }
-}
-
-// MARK: - Fixture helpers
-
-private func cdkFixtureURL() -> URL {
-    URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .appendingPathComponent("Resources")
-        .appendingPathComponent("cdk-app")
-}
-
-/// Runs `npm install` inside the fixture the first time it's needed. Subsequent
-/// invocations short-circuit on the presence of `node_modules/aws-cdk-lib`.
-private func ensureCDKDependenciesInstalled(at fixtureURL: URL) throws {
-    let marker =
-        fixtureURL
-        .appendingPathComponent("node_modules")
-        .appendingPathComponent("aws-cdk-lib")
-    if FileManager.default.fileExists(atPath: marker.path) {
-        return
-    }
-
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["npm", "install", "--no-audit", "--no-fund", "--silent"]
-    process.currentDirectoryURL = fixtureURL
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = Pipe()
-
-    try process.run()
-    process.waitUntilExit()
-
-    if process.terminationStatus != 0 {
-        let stderr =
-            (process.standardError as? Pipe).flatMap {
-                try? $0.fileHandleForReading.readToEnd()
-            }.flatMap {
-                String(data: $0, encoding: .utf8)
-            } ?? ""
-        throw CDKIntegrationTestError.npmInstallFailed(
-            status: process.terminationStatus,
-            stderr: stderr
-        )
-    }
-}
-
-private enum CDKIntegrationTestError: Error, CustomStringConvertible {
-    case npmInstallFailed(status: Int32, stderr: String)
-
-    var description: String {
-        switch self {
-        case .npmInstallFailed(let status, let stderr):
-            return "npm install failed with status \(status): \(stderr)"
-        }
+        let body = try await getResponse.body.collect(upTo: 1024 * 1024)
+        #expect(String(buffer: body) == "hello from cdk integration test")
     }
 }

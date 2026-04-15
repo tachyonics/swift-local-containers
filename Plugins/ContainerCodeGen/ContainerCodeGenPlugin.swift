@@ -61,6 +61,7 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
                         "Generate \(entry.structName) from \(templateURL.lastPathComponent)",
                     executable: tool.url,
                     arguments: [
+                        "template",
                         templateURL.path(percentEncoded: false),
                         outputFile.path(percentEncoded: false),
                         entry.structName,
@@ -71,7 +72,73 @@ struct ContainerCodeGenPlugin: BuildToolPlugin {
             )
         }
 
+        for entry in manifest.cdkapps ?? [] {
+            let cdkAppURL = targetRoot.appending(path: entry.source)
+            guard
+                FileManager.default.fileExists(atPath: cdkAppURL.path)
+            else {
+                // Entry belongs to a different target.
+                continue
+            }
+
+            let outputFile = outputDir.appending(path: "\(entry.structName).swift")
+            let stagedTemplate = outputDir.appending(
+                path: "\(entry.structName).template.json"
+            )
+
+            // Collect the CDK app's source files as build inputs so SPM
+            // re-runs synth when they change. Skips node_modules and cdk.out
+            // to avoid ballooning the input set.
+            let inputs = collectCDKAppInputs(at: cdkAppURL)
+
+            commands.append(
+                .buildCommand(
+                    displayName:
+                        "Synthesize CDK app \(entry.source) -> \(entry.structName)",
+                    executable: tool.url,
+                    arguments: [
+                        "cdk-synth",
+                        cdkAppURL.path(percentEncoded: false),
+                        entry.stackName,
+                        outputFile.path(percentEncoded: false),
+                        entry.structName,
+                    ],
+                    inputFiles: inputs,
+                    outputFiles: [outputFile, stagedTemplate]
+                )
+            )
+        }
+
         return commands
+    }
+
+    /// Enumerates files under the CDK app directory, excluding `node_modules`
+    /// and `cdk.out`. Used as the input-file set for the synth build command
+    /// so SPM tracks re-synth correctness.
+    private func collectCDKAppInputs(at cdkAppURL: URL) -> [URL] {
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: cdkAppURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )
+        else {
+            return []
+        }
+
+        var results: [URL] = []
+        while let item = enumerator.nextObject() as? URL {
+            let components = item.pathComponents
+            if components.contains("node_modules") || components.contains("cdk.out") {
+                enumerator.skipDescendants()
+                continue
+            }
+            let values = try? item.resourceValues(forKeys: [.isRegularFileKey])
+            if values?.isRegularFile == true {
+                results.append(item)
+            }
+        }
+        return results
     }
 
     // MARK: - Manifest

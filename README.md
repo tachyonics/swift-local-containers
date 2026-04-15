@@ -79,9 +79,9 @@ struct DatabaseTests {
 }
 ```
 
-### LocalStack with CDK
+### LocalStack with CDK — imperative form
 
-Use the built-in `LocalStackContainer` builder and compose setup steps:
+Use the built-in `LocalStackContainer` builder and compose setup steps manually. `CDKSetup` runs `cdk synth` at test time and deploys the result to LocalStack. `CloudFormationSetup` transparently stubs the `/cdk-bootstrap/hnb659fds/version` SSM parameter when it detects a CDK-synthesized template, so you don't need to run a real `cdk bootstrap` against LocalStack.
 
 ```swift
 import LocalContainers
@@ -93,11 +93,93 @@ struct MyLocalStack: ContainerKey {
             services: ["s3", "dynamodb", "sqs"]
         ).configuration(),
         setups: [
-            CDKSetup(appPath: "infra/app.ts", stackName: "MyStack")
+            CDKSetup(
+                cdkAppPath: "infra",
+                stackName: "MyStack",
+                autoBootstrap: false
+            )
         ]
     )
 }
 ```
+
+### LocalStack with CDK — declarative form (recommended)
+
+For projects that want strongly-typed access to stack outputs and have the CDK synth happen at build time (rather than test time), declare your CloudFormation templates and CDK apps in `.local-containers/codegen.json` at the package root:
+
+```json
+{
+  "templates": [
+    {
+      "source": "Resources/my-infra.json",
+      "structName": "MyInfraOutputs"
+    }
+  ],
+  "cdkapps": [
+    {
+      "source": "Resources/my-cdk-app",
+      "stackName": "MyStack",
+      "structName": "MyStackOutputs"
+    }
+  ]
+}
+```
+
+The `ContainerCodeGen` build plugin reads the manifest, runs `cdk synth` for each `cdkapps[]` entry during `swift build`, and generates a `StackOutputs`-conforming struct with typed accessors for every output declared in the template's `Outputs` section. Use the generated struct in your test suite via `@Containers` + `@LocalStackContainer`:
+
+```swift
+import ContainerMacrosLib
+import ContainerTestSupport
+import Testing
+
+@Containers
+struct MyContainers {
+    @LocalStackContainer(stackName: "my-stack")
+    var infra: MyStackOutputs
+}
+
+@Suite(MyContainers.containerTrait, .tags(.integration))
+struct InfraTests {
+    let containers = MyContainers()
+
+    @Test func deployedStackIsUsable() async throws {
+        let infra = containers.infra
+        // infra.bucketName, infra.queueUrl, ... are strongly typed
+        // from the template's Outputs section
+        print(infra.awsEndpoint, infra.bucketName)
+    }
+}
+```
+
+#### Bootstrapping the declarative CDK flow
+
+SwiftPM's build-plugin sandbox denies network access, so the build plugin cannot run `npm install` itself. Run the `bootstrap` command plugin once after a fresh checkout (or whenever you add a new `cdkapps[]` entry):
+
+```sh
+swift package --allow-network-connections all \
+              --allow-writing-to-package-directory bootstrap
+```
+
+This iterates every `cdkapps[]` entry in the manifest and runs `npm install` in each CDK app directory. After it completes, `swift build` and `swift test` work normally with the sandbox fully intact.
+
+#### Continuous integration
+
+Your CI pipeline needs two things:
+
+1. **Node.js** available on PATH (GitHub-hosted `ubuntu-*` and `macos-*` runners include it by default).
+2. A `swift package bootstrap` step **before** any `swift build`/`swift test` command. Without it, the build will fail when the CDK codegen plugin cannot find `node_modules/.bin/cdk`.
+
+Example GitHub Actions snippet:
+
+```yaml
+- uses: actions/checkout@v6
+- name: Bootstrap
+  run: swift package --allow-network-connections all --allow-writing-to-package-directory bootstrap
+- name: Run tests
+  run: swift test
+```
+
+This requirement only applies to projects that declare `cdkapps[]` entries. Projects using `templates[]` for handwritten CloudFormation — or no manifest at all — need no bootstrap step.
 
 ## Requirements
 
