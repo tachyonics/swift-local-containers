@@ -3,6 +3,7 @@ const cdk = require('aws-cdk-lib');
 const { Stack } = require('aws-cdk-lib');
 const s3 = require('aws-cdk-lib/aws-s3');
 const s3_assets = require('aws-cdk-lib/aws-s3-assets');
+const lambda = require('aws-cdk-lib/aws-lambda');
 
 // Assetless stack — used by the declarative `cdkapps[]` path and by the
 // imperative `CDKSetup(autoBootstrap: false)` path. Contains only "inline"
@@ -49,6 +50,29 @@ class AssetStack extends Stack {
   }
 }
 
+// Lambda stack — used by the imperative `CDKSetup(autoBootstrap: true)` path
+// when the host's Docker socket is mounted into the LocalStack container.
+// LocalStack needs Docker socket access to spawn sibling containers for
+// Lambda execution. The test is gated on `dockerSocketAvailable` so it only
+// runs in environments where this is possible.
+class LambdaStack extends Stack {
+  constructor(scope, id, props) {
+    super(scope, id, props);
+
+    const fn = new lambda.Function(this, 'HelloFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(
+        "exports.handler = async () => ({ statusCode: 200, body: 'hello from lambda fixture' });"
+      ),
+    });
+
+    new cdk.CfnOutput(this, 'FunctionName', {
+      value: fn.functionName,
+    });
+  }
+}
+
 // Uses CDK's DefaultStackSynthesizer — the same configuration a production
 // app would use. `CDKSetup` stubs the `/cdk-bootstrap/hnb659fds/version` SSM
 // parameter in LocalStack (for the assetless path), or delegates to
@@ -57,3 +81,4 @@ class AssetStack extends Stack {
 const app = new cdk.App();
 new TestStack(app, 'CdkIntegrationTestStack');
 new AssetStack(app, 'CdkAssetIntegrationTestStack');
+new LambdaStack(app, 'CdkLambdaIntegrationTestStack');

@@ -20,6 +20,7 @@ import Testing
 /// assetless SSM-stub flow.
 @Suite(
     .tags(.integration, .localstack),
+    .serialized,
     .enabled(
         if: dockerAvailable && npmAvailable,
         "Docker and npm are required"
@@ -138,6 +139,65 @@ struct CDKSetupImperativeTests {
         // name (account/region suffix differs), just confirm the
         // prefix.
         #expect(assetBucket.hasPrefix("cdk-hnb659fds-assets-"))
+        #expect(outputs["_awsEndpoint"]?.isEmpty == false)
+    }
+
+    @Test(
+        "CDKSetup with autoBootstrap=true deploys a Lambda stack when Docker socket is mounted",
+        .enabled(
+            if: dockerSocketAvailable,
+            "Docker socket at \(dockerSocketPath) is required for LocalStack Lambda execution"
+        )
+    )
+    func deployLambdaCDKApp() async throws {
+        let fixtureURL = imperativeCdkFixtureURL()
+        try ensureCDKDependenciesInstalled(at: fixtureURL)
+
+        let runtime = DockerContainerRuntime()
+        // Mount the host Docker socket so LocalStack can spawn sibling
+        // containers for Lambda runtime execution.
+        let config = LocalStackContainer(
+            environment: LocalStackContainer.environmentForwarding(
+                overriding: LocalContainersConfig.values
+            ),
+            volumes: [
+                VolumeMount(
+                    hostPath: dockerSocketPath,
+                    containerPath: "/var/run/docker.sock"
+                )
+            ]
+        ).configuration()
+
+        try await runtime.pullImage(config.image)
+        let container = try await runtime.startContainer(from: config)
+
+        defer {
+            Task {
+                try? await runtime.stopContainer(container)
+                try? await runtime.removeContainer(container)
+            }
+        }
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
+
+        let setup = CDKSetup(
+            cdkAppPath: fixtureURL.path,
+            stackName: "CdkLambdaIntegrationTestStack",
+            autoBootstrap: true
+        )
+
+        try await setup.setUp(container: container)
+        defer {
+            Task { try? await setup.tearDown(container: container) }
+        }
+
+        let outputs = try await setup.fetchOutputs(from: container)
+        let functionName = try #require(outputs["FunctionName"])
+        #expect(!functionName.isEmpty)
         #expect(outputs["_awsEndpoint"]?.isEmpty == false)
     }
 }

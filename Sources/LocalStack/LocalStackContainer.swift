@@ -12,6 +12,9 @@ public struct LocalStackContainer: Sendable {
     /// Additional environment variables.
     public let environment: [String: String]
 
+    /// Volume mounts to bind into the container.
+    public let volumes: [VolumeMount]
+
     /// The gateway port (default 4566).
     public let gatewayPort: UInt16
 
@@ -19,11 +22,13 @@ public struct LocalStackContainer: Sendable {
         image: String = "localstack/localstack:latest",
         services: [String] = [],
         environment: [String: String] = [:],
+        volumes: [VolumeMount] = [],
         gatewayPort: UInt16 = 4566
     ) {
         self.image = image
         self.services = services
         self.environment = environment
+        self.volumes = volumes
         self.gatewayPort = gatewayPort
     }
 
@@ -50,6 +55,7 @@ public struct LocalStackContainer: Sendable {
             image: image,
             ports: [PortMapping(containerPort: gatewayPort)],
             environment: env,
+            volumes: volumes,
             waitStrategy: .log("Ready.")
         )
     }
