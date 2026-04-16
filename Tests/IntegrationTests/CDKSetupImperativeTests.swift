@@ -20,6 +20,7 @@ import Testing
 /// assetless SSM-stub flow.
 @Suite(
     .tags(.integration, .localstack),
+    .serialized,
     .enabled(
         if: dockerAvailable && npmAvailable,
         "Docker and npm are required"
@@ -163,7 +164,7 @@ struct CDKSetupImperativeTests {
                 VolumeMount(
                     hostPath: dockerSocketPath,
                     containerPath: "/var/run/docker.sock"
-                ),
+                )
             ]
         ).configuration()
 
