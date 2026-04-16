@@ -1,0 +1,1 @@
+hello from the cdk integration test asset fixture
