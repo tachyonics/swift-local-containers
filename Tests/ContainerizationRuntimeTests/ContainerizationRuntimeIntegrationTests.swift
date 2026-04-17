@@ -1,11 +1,10 @@
 import ContainerTestSupport
+import Containerization
 import Foundation
 import LocalContainers
 import Testing
 
 @testable import ContainerizationRuntime
-
-import Containerization
 
 private let containerizationAvailable: Bool = {
     // Check 1: a Linux kernel must be installed.
