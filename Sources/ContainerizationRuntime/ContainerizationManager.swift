@@ -211,7 +211,7 @@ actor ContainerizationManager {
         return Kernel(path: kernelPath, platform: .linuxArm)
     }
 
-    private func resolvePortMappings(
+    func resolvePortMappings(
         from ports: [PortMapping]
     ) -> [ResolvedPortMapping] {
         ports.map { mapping in
@@ -236,7 +236,7 @@ actor ContainerizationManager {
     /// - `"nginx:latest"` → `"docker.io/library/nginx:latest"`
     /// - `"localstack/localstack:latest"` → `"docker.io/localstack/localstack:latest"`
     /// - `"ghcr.io/org/image:v1"` → unchanged (already qualified)
-    private func qualifyImageReference(_ reference: String) -> String {
+    func qualifyImageReference(_ reference: String) -> String {
         let domainSeparator = reference.firstIndex(of: "/")
 
         guard let separatorIndex = domainSeparator else {
