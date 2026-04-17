@@ -148,10 +148,14 @@ jobs:
       - name: Bootstrap
         run: swift package --allow-network-connections all --allow-writing-to-package-directory bootstrap
       - name: Install container runtime
-        # Installs the `container` CLI and downloads the Linux kernel to
+        # Installs the `container` CLI and starts the system service, which
+        # downloads the Linux kernel to
         # ~/Library/Application Support/com.apple.container/kernels/.
-        # Required for Apple Containerization framework tests.
-        run: brew install container
+        # --enable-kernel-install auto-accepts the interactive kernel
+        # download prompt. --timeout 120 prevents indefinite hangs.
+        run: |
+          brew install container
+          container system start --enable-kernel-install --timeout 120
       - name: Build tests
         run: swift build --build-tests
       - name: Sign test binary with vmnet entitlement
