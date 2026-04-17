@@ -241,6 +241,17 @@ package.targets.append(
     )
 )
 
+package.targets.append(
+    .testTarget(
+        name: "ContainerizationRuntimeTests",
+        dependencies: [
+            "ContainerizationRuntime",
+            "ContainerTestSupport",
+            "LocalContainers",
+        ]
+    )
+)
+
 // Add ContainerizationRuntime as a dependency of PlatformRuntime on macOS
 if let platformIdx = package.targets.firstIndex(where: { $0.name == "PlatformRuntime" }) {
     package.targets[platformIdx].dependencies.append(
