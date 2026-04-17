@@ -137,6 +137,46 @@ jobs:
         run: swift build -c release -Xswiftc -strict-concurrency=complete
       - name: Run tests
         run: swift test --filter '!/\.integration/'
+  Containerization:
+    name: Containerization / macOS ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Bootstrap
+        run: swift package --allow-network-connections all --allow-writing-to-package-directory bootstrap
+      - name: Install container runtime
+        # Installs the `container` CLI and downloads the Linux kernel to
+        # ~/Library/Application Support/com.apple.container/kernels/.
+        # Required for Apple Containerization framework tests.
+        run: brew install container
+      - name: Build tests
+        run: swift build --build-tests
+      - name: Sign test binary with vmnet entitlement
+        # The Containerization framework's VmnetNetwork requires the
+        # com.apple.vm.networking entitlement. swift test produces an
+        # unsigned binary, so we codesign it after build. This is the
+        # same mechanism Xcode uses when a test target has an
+        # entitlements file — we just apply it manually for the CLI
+        # workflow. Users of this framework should add the entitlement
+        # to their Xcode test target's entitlements file instead.
+        run: |
+          TEST_BINARY="$(swift build --show-bin-path)/swift-local-containersPackageTests.xctest/Contents/MacOS/swift-local-containersPackageTests"
+          cat > /tmp/vmnet-entitlements.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>com.apple.vm.networking</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+          codesign --force --sign - --entitlements /tmp/vmnet-entitlements.plist "$TEST_BINARY"
+      - name: Run Containerization tests
+        run: swift test --skip-build --filter ContainerizationRuntimeTests
   # APIBreakage:
   #   runs-on: ubuntu-24.04
   #   steps:
