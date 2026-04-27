@@ -11,9 +11,10 @@ import Logging
 /// session protocol that's substantial to implement. The `docker` CLI handles
 /// all of this transparently.
 ///
-/// Streams stdout to `logger.debug` and collects stderr for error reporting.
-/// On non-zero exit, throws ``ContainerError/imageBuildFailed(tag:reason:)``
-/// with the trimmed tail of stderr.
+/// Streams stdout/stderr to `logger.debug` line-by-line as the build runs and
+/// collects the stderr tail for error reporting. On non-zero exit, throws
+/// ``ContainerError/imageBuildFailed(tag:reason:)`` with the trimmed tail of
+/// stderr.
 func runDockerBuild(spec: BuildSpec, logger: Logger) async throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -38,21 +39,16 @@ func runDockerBuild(spec: BuildSpec, logger: Logger) async throws {
         ]
     )
 
-    let stdoutTask = Task {
-        await streamPipe(
-            stdoutPipe.fileHandleForReading,
-            label: "docker build stdout",
-            logger: logger,
-            collectTail: false
-        )
+    // Drain pipes on detached threads so a build with > 64KB of output
+    // doesn't deadlock waiting for the kernel pipe buffer to drain.
+    let stdoutHandle = stdoutPipe.fileHandleForReading
+    let stderrHandle = stderrPipe.fileHandleForReading
+
+    let stdoutTask = Task.detached(priority: .background) {
+        drainPipeSync(stdoutHandle, label: "docker build", logger: logger, collectTail: false)
     }
-    let stderrTask = Task {
-        await streamPipe(
-            stderrPipe.fileHandleForReading,
-            label: "docker build stderr",
-            logger: logger,
-            collectTail: true
-        )
+    let stderrTask = Task.detached(priority: .background) {
+        drainPipeSync(stderrHandle, label: "docker build", logger: logger, collectTail: true)
     }
 
     let exitCode: Int32
@@ -88,26 +84,28 @@ func runDockerBuild(spec: BuildSpec, logger: Logger) async throws {
     }
 }
 
-private func streamPipe(
+@Sendable
+private func drainPipeSync(
     _ handle: FileHandle,
     label: String,
     logger: Logger,
     collectTail: Bool
-) async -> String {
+) -> String {
     var tail = ""
     let maxTail = 8 * 1024
-    do {
-        for try await line in handle.bytes.lines {
+    while true {
+        let data = handle.availableData
+        if data.isEmpty { break }  // EOF — writer (the process) closed the pipe.
+        let str = String(decoding: data, as: UTF8.self)
+        for line in str.split(separator: "\n", omittingEmptySubsequences: true) {
             logger.debug("\(label)", metadata: ["line": "\(line)"])
-            if collectTail {
-                tail += line + "\n"
-                if tail.count > maxTail {
-                    tail = String(tail.suffix(maxTail))
-                }
+        }
+        if collectTail {
+            tail += str
+            if tail.count > maxTail {
+                tail = String(tail.suffix(maxTail))
             }
         }
-    } catch {
-        logger.debug("\(label) read failed", metadata: ["error": "\(error)"])
     }
     return tail
 }
