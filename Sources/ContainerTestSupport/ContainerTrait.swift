@@ -50,9 +50,16 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
             // Start all containers
             for key in keys {
                 let spec = key.spec
-                logger.info("Starting container", metadata: ["image": "\(spec.configuration.image)"])
-                try await runtime.pullImage(spec.configuration.image)
-                let container = try await runtime.startContainer(from: spec.configuration)
+                logger.info(
+                    "Starting container",
+                    metadata: ["image": "\(spec.configuration.image.imageReference)"]
+                )
+                let preparedConfig = try await prepareImage(
+                    for: spec.configuration,
+                    using: runtime,
+                    logger: logger
+                )
+                let container = try await runtime.startContainer(from: preparedConfig)
 
                 // Wait for container readiness
                 try await WaitStrategyExecutor.waitUntilReady(

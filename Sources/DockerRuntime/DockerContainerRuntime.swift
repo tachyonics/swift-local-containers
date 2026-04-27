@@ -41,7 +41,8 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
     public func startContainer(
         from configuration: ContainerConfiguration
     ) async throws -> RunningContainer {
-        logger.info("Starting container", metadata: ["image": "\(configuration.image)"])
+        let imageRef = configuration.image.imageReference
+        logger.info("Starting container", metadata: ["image": "\(imageRef)"])
 
         // Build the Docker create request from the configuration
         let request = buildCreateRequest(from: configuration)
@@ -60,7 +61,7 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         return RunningContainer(
             id: response.id,
             name: inspection.name,
-            image: configuration.image,
+            image: imageRef,
             host: host,
             ports: resolvedPorts
         )
@@ -171,7 +172,7 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         }
 
         return CreateContainerRequest(
-            image: config.image,
+            image: config.image.imageReference,
             env: env.isEmpty ? nil : env,
             cmd: config.command,
             exposedPorts: exposedPorts.isEmpty ? nil : exposedPorts,

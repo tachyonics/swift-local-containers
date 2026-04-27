@@ -45,7 +45,7 @@ struct CDKSetupImperativeTests {
             )
         ).configuration()
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {
@@ -95,7 +95,7 @@ struct CDKSetupImperativeTests {
             )
         ).configuration()
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {
@@ -168,7 +168,7 @@ struct CDKSetupImperativeTests {
             ]
         ).configuration()
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {

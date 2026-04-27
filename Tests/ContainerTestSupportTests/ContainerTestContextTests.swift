@@ -48,7 +48,7 @@ struct SharedContainerManagerTests {
         )
 
         verify(mock).pullImage("test:latest")
-        verify(mock).startContainer(from: .matching { $0.image == "test:latest" })
+        verify(mock).startContainer(from: .matching { $0.image.imageReference == "test:latest" })
         #expect(container.id == "stub-1")
     }
 }

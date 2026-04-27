@@ -48,7 +48,7 @@ actor ContainerizationManager {
         let stderrWriter = LogAccumulatingWriter()
         let containerConfig = configuration
 
-        let qualifiedImage = qualifyImageReference(containerConfig.image)
+        let qualifiedImage = qualifyImageReference(containerConfig.image.imageReference)
         let container = try await manager.create(
             containerID,
             reference: qualifiedImage

@@ -50,7 +50,7 @@ public struct ContainerizationContainerRuntime: ContainerRuntime, ImageBuildingR
         return RunningContainer(
             id: result.containerID,
             name: result.name,
-            image: configuration.image,
+            image: configuration.image.imageReference,
             host: result.host,
             ports: result.ports
         )

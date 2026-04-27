@@ -52,7 +52,7 @@ struct ContainerizationRuntimeIntegrationTests {
             waitTimeout: .seconds(15)
         )
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         try await WaitStrategyExecutor.waitUntilReady(
@@ -112,7 +112,7 @@ struct ContainerizationRuntimeIntegrationTests {
             waitTimeout: .seconds(30)
         )
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {
