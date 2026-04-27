@@ -164,6 +164,12 @@ package struct BuildImageProgress: Codable, Sendable {
     var stream: String?
     var error: String?
     var aux: BuildImageAux?
+
+    /// Top-level error shape returned by Docker's Engine API for non-2xx responses
+    /// (e.g. `{"message": "Error response from daemon: ..."}`). Streaming build
+    /// progress on a successful 200 doesn't include this; it appears only when
+    /// the daemon rejects the request itself.
+    var message: String?
 }
 
 package struct BuildImageAux: Codable, Sendable {

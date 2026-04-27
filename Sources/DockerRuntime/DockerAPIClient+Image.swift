@@ -40,15 +40,19 @@ extension GenericDockerAPIClient {
             logger: nil
         )
 
+        // Always drain — for 2xx responses the error (if any) is in the NDJSON
+        // stream; for non-2xx the daemon typically returns a single
+        // `{"message": "..."}` body, which `handleBuildLine` also picks up.
+        let lastError = try await drainBuildStream(response.body)
+
+        if let lastError {
+            throw ContainerError.imageBuildFailed(tag: tag, reason: lastError)
+        }
         guard (200..<300).contains(Int(response.status.code)) else {
             throw ContainerError.imageBuildFailed(
                 tag: tag,
                 reason: "HTTP \(response.status.code)"
             )
-        }
-
-        if let lastError = try await drainBuildStream(response.body) {
-            throw ContainerError.imageBuildFailed(tag: tag, reason: lastError)
         }
     }
 
@@ -105,6 +109,9 @@ extension GenericDockerAPIClient {
         guard let progress = decodeProgress(line, decoder: decoder) else { return fallback }
         if let error = progress.error, !error.isEmpty {
             return error
+        }
+        if let message = progress.message, !message.isEmpty {
+            return message
         }
         if let stream = progress.stream {
             let trimmed = stream.trimmingCharacters(in: .whitespacesAndNewlines)

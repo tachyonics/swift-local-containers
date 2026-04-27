@@ -635,6 +635,52 @@ struct BuildImageTests {
             tag: "myimg:test"
         )
     }
+
+    @Test("Non-2xx with daemon message body surfaces the message in the error")
+    func nonSuccessWithDaemonMessage() async {
+        let body = #"{"message":"Error response from daemon: bad parameter"}"#
+        let (client, _) = makeClient(
+            returning: makeResponse(status: .internalServerError, body: body)
+        )
+
+        await #expect {
+            try await client.buildImage(
+                contextTar: Data(),
+                dockerfile: "Dockerfile",
+                tag: "myimg:test"
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .imageBuildFailed(_, let reason) = containerError
+            else {
+                return false
+            }
+            return reason == "Error response from daemon: bad parameter"
+        }
+    }
+
+    @Test("Non-2xx with NDJSON error body surfaces the error")
+    func nonSuccessWithNDJSONError() async {
+        let body = #"{"errorDetail":{"code":1,"message":"build failed"},"error":"build failed"}"#
+        let (client, _) = makeClient(
+            returning: makeResponse(status: .internalServerError, body: body)
+        )
+
+        await #expect {
+            try await client.buildImage(
+                contextTar: Data(),
+                dockerfile: "Dockerfile",
+                tag: "myimg:test"
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .imageBuildFailed(_, let reason) = containerError
+            else {
+                return false
+            }
+            return reason == "build failed"
+        }
+    }
 }
 
 // MARK: - inspectImage
