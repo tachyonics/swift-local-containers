@@ -12,6 +12,11 @@ public enum WaitStrategy: Sendable {
     /// Wait for a fixed duration after the container starts.
     case fixedDelay(Duration)
 
+    /// Wait until an HTTP GET to the given path on the first exposed port
+    /// returns the expected status code. Connection errors and non-matching
+    /// statuses are treated as "not ready yet" and trigger a retry.
+    case httpGet(path: String, expectedStatus: Int = 200)
+
     /// Custom wait strategy implemented by the caller.
     case custom(@Sendable (RunningContainer) async throws -> Void)
 }

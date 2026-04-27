@@ -1,4 +1,6 @@
+import AsyncHTTPClient
 import Logging
+import NIOCore
 
 #if canImport(Darwin)
 import Darwin
@@ -49,6 +51,15 @@ package enum WaitStrategyExecutor {
             )
         case .fixedDelay(let duration):
             try await Task.sleep(for: duration)
+        case .httpGet(let path, let expectedStatus):
+            try await waitForHTTPGet(
+                container: container,
+                path: path,
+                expectedStatus: expectedStatus,
+                timeout: configuration.waitTimeout,
+                runtime: runtime,
+                logger: logger
+            )
         case .custom(let closure):
             try await closure(container)
         }
@@ -141,6 +152,46 @@ package enum WaitStrategyExecutor {
 
             try await group.next()
             group.cancelAll()
+        }
+    }
+
+    // MARK: - HTTP GET Strategy
+
+    private static func waitForHTTPGet(
+        container: RunningContainer,
+        path: String,
+        expectedStatus: Int,
+        timeout: Duration,
+        runtime: any ContainerRuntime,
+        logger: Logger
+    ) async throws {
+        guard let firstPort = container.ports.first else {
+            throw ContainerError.portNotFound(containerPort: 0)
+        }
+
+        let normalizedPath = path.hasPrefix("/") ? path : "/\(path)"
+        let url = "http://\(container.host):\(firstPort.hostPort)\(normalizedPath)"
+
+        try await pollWithTimeout(
+            strategy: "httpGet",
+            timeout: timeout,
+            pollInterval: .milliseconds(500),
+            container: container,
+            runtime: runtime,
+            logger: logger
+        ) {
+            do {
+                var request = HTTPClientRequest(url: url)
+                request.method = .GET
+                let response = try await HTTPClient.shared.execute(
+                    request,
+                    timeout: .seconds(2)
+                )
+                return response.status.code == UInt(expectedStatus)
+            } catch {
+                // Connection refused, DNS, timeout, etc. — treat as "not ready, retry".
+                return false
+            }
         }
     }
 
