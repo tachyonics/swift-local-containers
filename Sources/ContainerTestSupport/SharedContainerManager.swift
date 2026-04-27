@@ -37,10 +37,17 @@ public actor SharedContainerManager {
         registerCleanupIfNeeded(runtime: runtime)
 
         let spec = key.spec
-        logger.info("Starting shared container", metadata: ["key": "\(key)", "image": "\(spec.configuration.image)"])
+        logger.info(
+            "Starting shared container",
+            metadata: ["key": "\(key)", "image": "\(spec.configuration.image.imageReference)"]
+        )
 
-        try await runtime.pullImage(spec.configuration.image)
-        let container = try await runtime.startContainer(from: spec.configuration)
+        let preparedConfig = try await prepareImage(
+            for: spec.configuration,
+            using: runtime,
+            logger: logger
+        )
+        let container = try await runtime.startContainer(from: preparedConfig)
 
         // Wait for container readiness
         try await WaitStrategyExecutor.waitUntilReady(
@@ -89,11 +96,15 @@ public actor SharedContainerManager {
         let spec = key.spec
         logger.info(
             "Starting shared container",
-            metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image)"]
+            metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image.imageReference)"]
         )
 
-        try await runtime.pullImage(spec.configuration.image)
-        let container = try await runtime.startContainer(from: spec.configuration)
+        let preparedConfig = try await prepareImage(
+            for: spec.configuration,
+            using: runtime,
+            logger: logger
+        )
+        let container = try await runtime.startContainer(from: preparedConfig)
 
         try await WaitStrategyExecutor.waitUntilReady(
             container: container,

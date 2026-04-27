@@ -46,8 +46,10 @@ public struct VolumeMount: Sendable, Hashable {
 
 /// Configuration describing the desired state of a container before it is started.
 public struct ContainerConfiguration: Sendable {
-    /// OCI image reference (e.g. `"localstack/localstack:latest"`).
-    public let image: String
+    /// Where the image comes from — either an existing reference to pull, or a
+    /// Dockerfile-based build. String literals coerce to `.reference` for
+    /// backward compatibility.
+    public let image: ImageSource
 
     /// Port mappings from container ports to host ports.
     public let ports: [PortMapping]
@@ -74,7 +76,7 @@ public struct ContainerConfiguration: Sendable {
     public let waitTimeout: Duration
 
     public init(
-        image: String,
+        image: ImageSource,
         ports: [PortMapping] = [],
         environment: [String: String] = [:],
         volumes: [VolumeMount] = [],
@@ -93,5 +95,21 @@ public struct ContainerConfiguration: Sendable {
         self.waitStrategy = waitStrategy
         self.healthCheck = healthCheck
         self.waitTimeout = waitTimeout
+    }
+
+    /// Returns a copy with the given port mappings, replacing any existing ones.
+    /// Used by the trait to inject auto-detected ports for `.build` sources.
+    public func with(ports: [PortMapping]) -> ContainerConfiguration {
+        ContainerConfiguration(
+            image: image,
+            ports: ports,
+            environment: environment,
+            volumes: volumes,
+            name: name,
+            command: command,
+            waitStrategy: waitStrategy,
+            healthCheck: healthCheck,
+            waitTimeout: waitTimeout
+        )
     }
 }

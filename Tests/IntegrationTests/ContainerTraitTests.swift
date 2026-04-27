@@ -17,7 +17,7 @@ struct ContainerTraitTests {
             waitTimeout: .seconds(30)
         )
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {
@@ -51,7 +51,7 @@ struct ContainerTraitTests {
             waitTimeout: .seconds(30)
         )
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {
@@ -80,7 +80,7 @@ struct ContainerTraitTests {
             waitStrategy: .fixedDelay(.milliseconds(500))
         )
 
-        try await runtime.pullImage(config.image)
+        try await runtime.pullImage(config.image.imageReference)
         let container = try await runtime.startContainer(from: config)
 
         defer {

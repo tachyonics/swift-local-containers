@@ -11,7 +11,7 @@ struct LocalStackContainerTests {
         let ls = LocalStackContainer()
         let config = ls.configuration()
 
-        #expect(config.image == "localstack/localstack:latest")
+        #expect(config.image.imageReference == "localstack/localstack:latest")
         #expect(config.ports.count == 1)
         #expect(config.ports[0].containerPort == 4566)
     }
@@ -29,7 +29,7 @@ struct LocalStackContainerTests {
         let ls = LocalStackContainer(image: "localstack/localstack:3.0")
         let config = ls.configuration()
 
-        #expect(config.image == "localstack/localstack:3.0")
+        #expect(config.image.imageReference == "localstack/localstack:3.0")
     }
 
     @Test("Wait strategy is log-based")

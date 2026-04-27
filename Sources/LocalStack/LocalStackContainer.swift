@@ -52,7 +52,7 @@ public struct LocalStackContainer: Sendable {
         }
 
         return ContainerConfiguration(
-            image: image,
+            image: .reference(image),
             ports: [PortMapping(containerPort: gatewayPort)],
             environment: env,
             volumes: volumes,

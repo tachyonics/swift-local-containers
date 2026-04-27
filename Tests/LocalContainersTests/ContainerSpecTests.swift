@@ -13,7 +13,7 @@ struct ContainerSpecTests {
         let config = ContainerConfiguration(image: "redis:7")
         let spec = ContainerSpec(config, setups: [NoOpSetup()])
 
-        #expect(spec.configuration.image == "redis:7")
+        #expect(spec.configuration.image.imageReference == "redis:7")
         #expect(spec.setups.count == 1)
     }
 

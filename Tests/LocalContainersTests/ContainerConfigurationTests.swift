@@ -8,7 +8,7 @@ struct ContainerConfigurationTests {
     func defaultConfiguration() {
         let config = ContainerConfiguration(image: "nginx:latest")
 
-        #expect(config.image == "nginx:latest")
+        #expect(config.image.imageReference == "nginx:latest")
         #expect(config.ports.isEmpty)
         #expect(config.environment.isEmpty)
         #expect(config.volumes.isEmpty)
@@ -28,7 +28,7 @@ struct ContainerConfigurationTests {
             command: ["postgres", "-c", "log_statement=all"]
         )
 
-        #expect(config.image == "postgres:16")
+        #expect(config.image.imageReference == "postgres:16")
         #expect(config.ports.count == 1)
         #expect(config.ports[0].containerPort == 5432)
         #expect(config.ports[0].hostPort == 15432)
