@@ -158,6 +158,42 @@ public struct PullImageProgress: Codable, Sendable {
     public var error: String?
 }
 
+// MARK: - Build Image
+
+package struct BuildImageProgress: Codable, Sendable {
+    var stream: String?
+    var error: String?
+    var aux: BuildImageAux?
+}
+
+package struct BuildImageAux: Codable, Sendable {
+    var id: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "ID"
+    }
+}
+
+// MARK: - Inspect Image
+
+package struct InspectImageResponse: Codable, Sendable {
+    var id: String
+    var config: ImageConfig
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case config = "Config"
+    }
+
+    struct ImageConfig: Codable, Sendable {
+        var exposedPorts: [String: EmptyObject]?
+
+        private enum CodingKeys: String, CodingKey {
+            case exposedPorts = "ExposedPorts"
+        }
+    }
+}
+
 // MARK: - Exec
 
 package struct CreateExecRequest: Codable, Sendable {

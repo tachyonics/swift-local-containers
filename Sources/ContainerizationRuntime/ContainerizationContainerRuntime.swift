@@ -1,4 +1,5 @@
 import Containerization
+import Foundation
 import LocalContainers
 import Logging
 
@@ -6,7 +7,7 @@ import Logging
 ///
 /// Available on macOS 26+ with Apple Silicon. Each container runs as a
 /// lightweight Linux VM with its own IP address via ``VmnetNetwork``.
-public struct ContainerizationContainerRuntime: ContainerRuntime {
+public struct ContainerizationContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
     private let manager: ContainerizationManager
 
     public init() {
@@ -15,6 +16,26 @@ public struct ContainerizationContainerRuntime: ContainerRuntime {
 
     public func pullImage(_ reference: String) async throws {
         try await manager.pullImage(reference)
+    }
+
+    package func buildImage(
+        contextTar: Data,
+        dockerfile: String,
+        tag: String
+    ) async throws {
+        throw ContainerError.imageBuildNotSupported(
+            reason:
+                "Apple's Containerization framework does not expose an in-process image-build API. "
+                + "Use Docker (set runtime to DockerContainerRuntime), or pre-build the image and reference it by tag."
+        )
+    }
+
+    package func inspectImage(reference: String) async throws -> ImageInspection {
+        throw ContainerError.imageBuildNotSupported(
+            reason:
+                "Image inspection is not yet implemented for the Containerization runtime. "
+                + "It is currently only required by the Dockerfile-based service container path, which is Docker-only."
+        )
     }
 
     public func startContainer(

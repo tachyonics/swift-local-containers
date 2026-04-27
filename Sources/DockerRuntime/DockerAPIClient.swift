@@ -8,11 +8,11 @@ import NIOFoundationCompat
 /// HTTP client for the Docker Engine API over a Unix domain socket.
 package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     private let socketPath: String
-    private let logger: Logger
-    private let executor: Executor
+    let logger: Logger
+    let executor: Executor
 
     private static var apiVersion: String { "v1.47" }
-    private static var maxResponseSize: Int { 10 * 1024 * 1024 }  // 10 MB
+    static var maxResponseSize: Int { 10 * 1024 * 1024 }  // 10 MB
 
     init(
         socketPath: String = "/var/run/docker.sock",
@@ -225,7 +225,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     // MARK: - Private Helpers
 
     /// Builds a URL string for the Docker API using the Unix socket path.
-    private func apiURL(
+    func apiURL(
         _ path: String,
         query: [(String, String)] = []
     ) throws -> String {
@@ -291,7 +291,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     }
 
     /// Attempts to extract an error message from the Docker API's JSON error response.
-    private func extractErrorMessage(from body: inout ByteBuffer) -> String? {
+    func extractErrorMessage(from body: inout ByteBuffer) -> String? {
         (try? JSONDecoder().decode(DockerErrorResponse.self, from: body))?.message
     }
 

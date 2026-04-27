@@ -559,3 +559,173 @@ struct DemultiplexDockerLogsTests {
         #expect(result.contains("hello\n"))
     }
 }
+
+// MARK: - buildImage
+
+@Suite("DockerAPIClient.buildImage")
+struct BuildImageTests {
+    @Test("Streamed NDJSON error throws imageBuildFailed")
+    func streamError() async {
+        let body = """
+            {"stream":"Step 1/2 : FROM scratch\\n"}
+            {"errorDetail":{"code":1,"message":"bad dockerfile"},"error":"bad dockerfile"}
+            """
+        let (client, mock) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        await #expect {
+            try await client.buildImage(
+                contextTar: Data(),
+                dockerfile: "Dockerfile",
+                tag: "myimg:test"
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .imageBuildFailed(let tag, let reason) = containerError
+            else {
+                return false
+            }
+            return tag == "myimg:test" && reason == "bad dockerfile"
+        }
+
+        verify(mock).execute(
+            .matching { req in
+                req.method == .POST
+                    && req.url.contains("/build")
+                    && req.url.contains("t=myimg:test")
+                    && req.url.contains("dockerfile=Dockerfile")
+            },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("Non-2xx status throws imageBuildFailed with HTTP code")
+    func nonSuccessStatus() async {
+        let (client, _) = makeClient(
+            returning: makeResponse(status: .internalServerError, body: "")
+        )
+
+        await #expect {
+            try await client.buildImage(
+                contextTar: Data(),
+                dockerfile: "Dockerfile",
+                tag: "myimg:test"
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .imageBuildFailed(_, let reason) = containerError
+            else {
+                return false
+            }
+            return reason == "HTTP 500"
+        }
+    }
+
+    @Test("Stream of only progress lines completes successfully")
+    func successOnlyProgress() async throws {
+        let body = """
+            {"stream":"Step 1/1 : FROM scratch\\n"}
+            {"aux":{"ID":"sha256:abc"}}
+            """
+        let (client, _) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        try await client.buildImage(
+            contextTar: Data(),
+            dockerfile: "Dockerfile",
+            tag: "myimg:test"
+        )
+    }
+}
+
+// MARK: - inspectImage
+
+@Suite("DockerAPIClient.inspectImage")
+struct InspectImageTests {
+    @Test("Parses Config.ExposedPorts into ExposedPort values")
+    func parsesExposedPorts() async throws {
+        let body = """
+            {"Id":"sha256:abc","Config":{"ExposedPorts":{"8080/tcp":{},"9000/udp":{}}}}
+            """
+        let (client, mock) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        let result = try await client.inspectImage(reference: "myimg:test")
+
+        #expect(result.id == "sha256:abc")
+        #expect(result.exposedPorts.count == 2)
+        #expect(result.exposedPorts.contains(ExposedPort(port: 8080, protocol: .tcp)))
+        #expect(result.exposedPorts.contains(ExposedPort(port: 9000, protocol: .udp)))
+
+        verify(mock).execute(
+            .matching { $0.method == .GET && $0.url.contains("/images/myimg:test/json") },
+            timeout: .any,
+            logger: .any
+        )
+    }
+
+    @Test("Image with no ExposedPorts returns empty array")
+    func noExposedPorts() async throws {
+        let body = #"{"Id":"sha256:abc","Config":{}}"#
+        let (client, _) = makeClient(returning: makeResponse(status: .ok, body: body))
+
+        let result = try await client.inspectImage(reference: "myimg:test")
+
+        #expect(result.exposedPorts.isEmpty)
+    }
+
+    @Test("404 throws imageNotFound")
+    func imageNotFound() async {
+        let body = #"{"message":"No such image"}"#
+        let (client, _) = makeClient(returning: makeResponse(status: .notFound, body: body))
+
+        await #expect {
+            try await client.inspectImage(reference: "ghost:latest")
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .imageNotFound(let ref) = containerError
+            else {
+                return false
+            }
+            return ref == "ghost:latest"
+        }
+    }
+}
+
+// MARK: - mapImageInspection (pure)
+
+@Suite("mapImageInspection")
+struct MapImageInspectionTests {
+    @Test("Sorts ports deterministically by (port, protocol)")
+    func sortsPorts() {
+        let response = InspectImageResponse(
+            id: "sha256:x",
+            config: .init(exposedPorts: [
+                "9000/udp": EmptyObject(),
+                "80/tcp": EmptyObject(),
+                "8080/tcp": EmptyObject(),
+            ])
+        )
+        let result = mapImageInspection(response)
+
+        #expect(
+            result.exposedPorts == [
+                ExposedPort(port: 80, protocol: .tcp),
+                ExposedPort(port: 8080, protocol: .tcp),
+                ExposedPort(port: 9000, protocol: .udp),
+            ]
+        )
+    }
+
+    @Test("Skips malformed port keys silently")
+    func skipsMalformed() {
+        let response = InspectImageResponse(
+            id: "sha256:x",
+            config: .init(exposedPorts: [
+                "not-a-port/tcp": EmptyObject(),
+                "8080/tcp": EmptyObject(),
+            ])
+        )
+        let result = mapImageInspection(response)
+
+        #expect(result.exposedPorts == [ExposedPort(port: 8080, protocol: .tcp)])
+    }
+}

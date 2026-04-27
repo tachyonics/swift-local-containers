@@ -7,8 +7,8 @@
 - [x] Implement `stopContainer()` to stop the VM
 - [x] Implement `removeContainer()` to remove the VM and clean up resources
 - [x] Implement `ContainerizationManager` actor for VM/image lifecycle
-- [ ] Add unit tests for ContainerizationRuntime
-- [ ] Add ContainerizationRuntime integration test (macOS 26+)
+- [x] Add unit tests for ContainerizationRuntime (22 tests covering `LogAccumulatingWriter`, `qualifyImageReference`, `resolvePortMappings`, and absent-container behaviour in `ContainerizationManagerTests`). Running in CI.
+- [x] Add ContainerizationRuntime integration test (macOS 26+) — 3 tests covering full lifecycle, unknown-container error, and port mapping. Gated on `containerizationAvailable` which probes kernel presence and vmnet availability. Tests skip under `swift test` because `com.apple.vm.networking` is a restricted entitlement that requires a trusted signing identity — ad-hoc codesigning is silently ignored on SIP-enabled macOS. Runnable via Xcode (which signs with a development certificate). Waiting on Apple to provide a CLI-compatible entitlement path before these can run in CI.
 
 ## Wait Strategies
 
