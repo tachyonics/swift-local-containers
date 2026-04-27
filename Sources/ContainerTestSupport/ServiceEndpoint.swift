@@ -43,7 +43,7 @@ public struct ServiceEndpoint: Sendable {
         guard let only = tcpPorts.first, tcpPorts.count == 1 else {
             preconditionFailure(
                 "ServiceEndpoint.baseURL is only valid when exactly one TCP port is exposed; "
-                + "this endpoint has \(tcpPorts.count) TCP ports — use port(_:) to disambiguate."
+                    + "this endpoint has \(tcpPorts.count) TCP ports — use port(_:) to disambiguate."
             )
         }
         return "http://\(host):\(only.hostPort)"
