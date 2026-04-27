@@ -4,59 +4,9 @@ import LocalContainers
 import NIOCore
 
 extension GenericDockerAPIClient {
-    /// Build an image from a tarred build context.
-    ///
-    /// The Engine API streams build progress as NDJSON. A 200 status alone is
-    /// not enough to declare success — the stream may carry an `{"error": ...}`
-    /// line. We drain the stream and surface any error as `imageBuildFailed`.
-    package func buildImage(
-        contextTar: Data,
-        dockerfile: String,
-        tag: String
-    ) async throws {
-        logger.info(
-            "Building image",
-            metadata: ["tag": "\(tag)", "dockerfile": "\(dockerfile)"]
-        )
-
-        let url = try apiURL(
-            "/build",
-            query: [
-                ("t", tag),
-                ("dockerfile", dockerfile),
-                ("rm", "1"),
-            ]
-        )
-
-        var request = HTTPClientRequest(url: url)
-        request.method = .POST
-        request.headers.add(name: "Content-Type", value: "application/x-tar")
-        request.headers.add(name: "Host", value: "localhost")
-        request.body = .bytes(contextTar)
-
-        let response = try await executor.execute(
-            request,
-            timeout: .seconds(600),
-            logger: nil
-        )
-
-        // Always drain — for 2xx responses the error (if any) is in the NDJSON
-        // stream; for non-2xx the daemon typically returns a single
-        // `{"message": "..."}` body, which `handleBuildLine` also picks up.
-        let lastError = try await drainBuildStream(response.body)
-
-        if let lastError {
-            throw ContainerError.imageBuildFailed(tag: tag, reason: lastError)
-        }
-        guard (200..<300).contains(Int(response.status.code)) else {
-            throw ContainerError.imageBuildFailed(
-                tag: tag,
-                reason: "HTTP \(response.status.code)"
-            )
-        }
-    }
-
     /// Inspect an image by reference and return its metadata.
+    ///
+    /// Used to discover declared `EXPOSE` ports for service-container port auto-mapping.
     package func inspectImage(reference: String) async throws -> ImageInspection {
         logger.info("Inspecting image", metadata: ["reference": "\(reference)"])
 
@@ -78,66 +28,6 @@ extension GenericDockerAPIClient {
 
         let decoded = try JSONDecoder().decode(InspectImageResponse.self, from: body)
         return mapImageInspection(decoded)
-    }
-
-    /// Drain the NDJSON build response stream, returning the last `error` line if any.
-    private func drainBuildStream(
-        _ body: HTTPClientResponse.Body
-    ) async throws -> String? {
-        var buffer = ByteBuffer()
-        let decoder = JSONDecoder()
-        var lastError: String?
-
-        for try await chunk in body {
-            var chunk = chunk
-            buffer.writeBuffer(&chunk)
-            while let line = readLine(from: &buffer) {
-                lastError = handleBuildLine(line, decoder: decoder, fallback: lastError)
-            }
-        }
-        if let trailing = buffer.readString(length: buffer.readableBytes) {
-            lastError = handleBuildLine(trailing, decoder: decoder, fallback: lastError)
-        }
-        return lastError
-    }
-
-    private func handleBuildLine(
-        _ line: String,
-        decoder: JSONDecoder,
-        fallback: String?
-    ) -> String? {
-        guard let progress = decodeProgress(line, decoder: decoder) else { return fallback }
-        if let error = progress.error, !error.isEmpty {
-            return error
-        }
-        if let message = progress.message, !message.isEmpty {
-            return message
-        }
-        if let stream = progress.stream {
-            let trimmed = stream.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                logger.debug("docker build", metadata: ["stream": "\(trimmed)"])
-            }
-        }
-        return fallback
-    }
-
-    private func readLine(from buffer: inout ByteBuffer) -> String? {
-        let view = buffer.readableBytesView
-        guard let newlineIdx = view.firstIndex(of: UInt8(ascii: "\n")) else {
-            return nil
-        }
-        let length = newlineIdx - view.startIndex + 1
-        return buffer.readString(length: length)
-    }
-
-    private func decodeProgress(
-        _ line: String,
-        decoder: JSONDecoder
-    ) -> BuildImageProgress? {
-        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return try? decoder.decode(BuildImageProgress.self, from: Data(trimmed.utf8))
     }
 }
 

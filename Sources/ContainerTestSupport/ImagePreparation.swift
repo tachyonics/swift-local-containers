@@ -31,16 +31,7 @@ package func prepareImage<R: ContainerRuntime>(
             )
         }
 
-        logger.info(
-            "Building image",
-            metadata: ["tag": "\(spec.tag)", "context": "\(spec.contextPath)"]
-        )
-        let tar = try spec.tarContext()
-        try await buildable.buildImage(
-            contextTar: tar,
-            dockerfile: spec.dockerfile,
-            tag: spec.tag
-        )
+        try await buildable.buildImage(spec: spec)
 
         let inspection = try await buildable.inspectImage(reference: spec.tag)
         guard configuration.ports.isEmpty, !inspection.exposedPorts.isEmpty else {

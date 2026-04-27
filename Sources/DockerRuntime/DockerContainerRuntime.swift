@@ -22,16 +22,8 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         try await client.pullImage(reference)
     }
 
-    package func buildImage(
-        contextTar: Data,
-        dockerfile: String,
-        tag: String
-    ) async throws {
-        try await client.buildImage(
-            contextTar: contextTar,
-            dockerfile: dockerfile,
-            tag: tag
-        )
+    package func buildImage(spec: BuildSpec) async throws {
+        try await runDockerBuild(spec: spec, logger: logger)
     }
 
     package func inspectImage(reference: String) async throws -> ImageInspection {

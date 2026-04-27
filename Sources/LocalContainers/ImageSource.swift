@@ -69,45 +69,6 @@ public struct BuildSpec: Sendable {
         return BuildSpec(contextPath: resolved, dockerfile: dockerfile, tag: tag)
     }
 
-    /// Package the build context directory as an uncompressed tar archive,
-    /// suitable as the body of Docker's `POST /build` endpoint.
-    ///
-    /// Shells out to `tar` (resolved via `/usr/bin/env`) — assumes a POSIX-ish
-    /// environment with `tar` on `PATH`. Honoring `.dockerignore` is not yet
-    /// implemented; the entire context directory is included.
-    public func tarContext() throws -> Data {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["tar", "-cf", "-", "-C", contextPath, "."]
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        do {
-            try process.run()
-        } catch {
-            throw ContainerError.runtimeError(
-                "Failed to launch tar for build context \(contextPath): \(error)"
-            )
-        }
-
-        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            let stderr =
-                String(
-                    data: errorPipe.fileHandleForReading.readDataToEndOfFile(),
-                    encoding: .utf8
-                ) ?? ""
-            throw ContainerError.runtimeError(
-                "tar exited with status \(process.terminationStatus) for context \(contextPath): \(stderr)"
-            )
-        }
-        return data
-    }
 }
 
 private func resolvePackageRelative(path: String, fromFile: String) -> String {

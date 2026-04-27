@@ -43,16 +43,8 @@ public struct PlatformRuntime: ContainerRuntime, ImageBuildingRuntime {
         try await underlying.pullImage(reference)
     }
 
-    package func buildImage(
-        contextTar: Data,
-        dockerfile: String,
-        tag: String
-    ) async throws {
-        try await underlying.buildImage(
-            contextTar: contextTar,
-            dockerfile: dockerfile,
-            tag: tag
-        )
+    package func buildImage(spec: BuildSpec) async throws {
+        try await underlying.buildImage(spec: spec)
     }
 
     package func inspectImage(reference: String) async throws -> ImageInspection {
