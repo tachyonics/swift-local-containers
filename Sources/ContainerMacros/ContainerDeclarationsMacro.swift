@@ -79,6 +79,19 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                             kind: .localStack(stackName: stackName)
                         )
                     )
+                } else if attrName == "DockerfileContainer" {
+                    let parsed = parseDockerfileAttribute(attr)
+                    properties.append(
+                        AnnotatedProperty(
+                            name: identifier,
+                            typeName: typeAnnotation,
+                            kind: .dockerfile(
+                                context: parsed.context,
+                                dockerfile: parsed.dockerfile,
+                                waitStrategy: parsed.waitStrategy
+                            )
+                        )
+                    )
                 }
             }
         }
@@ -145,6 +158,42 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         return "test-stack"
     }
 
+    private static func parseDockerfileAttribute(
+        _ attr: AttributeSyntax
+    ) -> (context: String, dockerfile: String, waitStrategy: String) {
+        var context = "."
+        var dockerfile = "Dockerfile"
+        var waitStrategy = ".port"
+
+        guard
+            let arguments = attr.arguments?
+                .as(LabeledExprListSyntax.self)
+        else {
+            return (context, dockerfile, waitStrategy)
+        }
+
+        for arg in arguments {
+            let label = arg.label?.text
+            if label == "context",
+                let stringLiteral = arg.expression
+                    .as(StringLiteralExprSyntax.self)
+            {
+                context = stringLiteral.segments.description
+            } else if label == "dockerfile",
+                let stringLiteral = arg.expression
+                    .as(StringLiteralExprSyntax.self)
+            {
+                dockerfile = stringLiteral.segments.description
+            } else if label == "waitStrategy" {
+                // Pass the expression through verbatim — it's a WaitStrategy enum
+                // value (e.g. `.port`, `.httpGet(path: "/health")`).
+                waitStrategy = arg.expression.description
+            }
+        }
+
+        return (context, dockerfile, waitStrategy)
+    }
+
     // MARK: - Code Generation
 
     private static func generateKeyDeclaration(
@@ -191,6 +240,26 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                     )
                 }
                 """
+
+        case .dockerfile(let context, let dockerfile, let waitStrategy):
+            let tag = "local-containers/\(property.name.lowercased()):test"
+            return """
+                private enum \(raw: keyName): ContainerKey {
+                    static let spec = ContainerSpec(
+                        ContainerConfiguration(
+                            image: .build(
+                                BuildSpec.resolvedAgainstPackage(
+                                    contextPath: \(literal: context),
+                                    from: #filePath,
+                                    dockerfile: \(literal: dockerfile),
+                                    tag: \(literal: tag)
+                                )
+                            ),
+                            waitStrategy: \(raw: waitStrategy)
+                        )
+                    )
+                }
+                """
         }
     }
 
@@ -200,7 +269,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         let keyEntries = properties.map { property in
             let keyName = "_\(property.name.capitalizedFirst)Key"
             switch property.kind {
-            case .container:
+            case .container, .dockerfile:
                 return "ErasedContainerKey(\(keyName).self)"
             case .localStack:
                 guard let typeName = property.typeName else {
@@ -259,6 +328,7 @@ struct AnnotatedProperty {
     enum Kind {
         case container(image: String, ports: [String])
         case localStack(stackName: String)
+        case dockerfile(context: String, dockerfile: String, waitStrategy: String)
     }
 }
 

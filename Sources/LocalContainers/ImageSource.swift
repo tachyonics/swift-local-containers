@@ -52,6 +52,23 @@ public struct BuildSpec: Sendable {
         self.tag = tag
     }
 
+    /// Build a `BuildSpec` whose `contextPath` is resolved relative to the
+    /// nearest enclosing `Package.swift` walking upward from `callSiteFile`.
+    ///
+    /// Used by the `@DockerfileContainer` macro: callers pass `from: #filePath`
+    /// at the call site so the resolved path is anchored at the user's package
+    /// root, regardless of where the test target's source directory lives.
+    /// Falls back to the literal `contextPath` if no `Package.swift` is found.
+    public static func resolvedAgainstPackage(
+        contextPath: String,
+        from callSiteFile: String,
+        dockerfile: String = "Dockerfile",
+        tag: String
+    ) -> BuildSpec {
+        let resolved = resolvePackageRelative(path: contextPath, fromFile: callSiteFile)
+        return BuildSpec(contextPath: resolved, dockerfile: dockerfile, tag: tag)
+    }
+
     /// Package the build context directory as an uncompressed tar archive,
     /// suitable as the body of Docker's `POST /build` endpoint.
     ///
@@ -91,4 +108,16 @@ public struct BuildSpec: Sendable {
         }
         return data
     }
+}
+
+private func resolvePackageRelative(path: String, fromFile: String) -> String {
+    var dir = URL(fileURLWithPath: fromFile).deletingLastPathComponent()
+    while dir.pathComponents.count > 1 {
+        let pkg = dir.appendingPathComponent("Package.swift")
+        if FileManager.default.fileExists(atPath: pkg.path) {
+            return URL(fileURLWithPath: path, relativeTo: dir).standardized.path
+        }
+        dir = dir.deletingLastPathComponent()
+    }
+    return path
 }

@@ -7,5 +7,6 @@ struct ContainerMacrosPlugin: CompilerPlugin {
         ContainerDeclarationsMacro.self,
         ContainerMacro.self,
         LocalStackContainerMacro.self,
+        DockerfileContainerMacro.self,
     ]
 }
