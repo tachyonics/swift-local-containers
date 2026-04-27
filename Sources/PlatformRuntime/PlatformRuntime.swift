@@ -23,7 +23,7 @@ import ContainerizationRuntime
 /// ```
 /// swift build --traits Containerization
 /// ```
-public struct PlatformRuntime: ContainerRuntime {
+public struct PlatformRuntime: ContainerRuntime, ImageBuildingRuntime {
     #if canImport(ContainerizationRuntime)
     private let underlying: ContainerizationContainerRuntime
     #else
@@ -43,7 +43,7 @@ public struct PlatformRuntime: ContainerRuntime {
         try await underlying.pullImage(reference)
     }
 
-    public func buildImage(
+    package func buildImage(
         contextTar: Data,
         dockerfile: String,
         tag: String
@@ -55,7 +55,7 @@ public struct PlatformRuntime: ContainerRuntime {
         )
     }
 
-    public func inspectImage(reference: String) async throws -> ImageInspection {
+    package func inspectImage(reference: String) async throws -> ImageInspection {
         try await underlying.inspectImage(reference: reference)
     }
 

@@ -6,7 +6,7 @@ import Logging
 ///
 /// Uses ``DockerAPIClient`` to communicate with the Docker daemon over a Unix
 /// domain socket. Works with Docker and Podman.
-public struct DockerContainerRuntime: ContainerRuntime {
+public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
     private let client: DockerAPIClient
     private let logger: Logger
 
@@ -22,7 +22,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
         try await client.pullImage(reference)
     }
 
-    public func buildImage(
+    package func buildImage(
         contextTar: Data,
         dockerfile: String,
         tag: String
@@ -34,7 +34,7 @@ public struct DockerContainerRuntime: ContainerRuntime {
         )
     }
 
-    public func inspectImage(reference: String) async throws -> ImageInspection {
+    package func inspectImage(reference: String) async throws -> ImageInspection {
         try await client.inspectImage(reference: reference)
     }
 
