@@ -13,6 +13,7 @@ nonisolated(unsafe) private let testMacros: [String: Macro.Type] = [
     "Containers": ContainerDeclarationsMacro.self,
     "Container": ContainerMacro.self,
     "LocalStackContainer": LocalStackContainerMacro.self,
+    "DockerfileContainer": DockerfileContainerMacro.self,
 ]
 #endif
 
@@ -691,6 +692,167 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                 }
 
                 extension SharedContainers: ContainerDeclarations {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    // MARK: - @DockerfileContainer
+
+    func testDockerfileContainerWithDefaults() throws {
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer()
+                var taskCluster: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var taskCluster: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_TaskClusterKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _TaskClusterKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/taskcluster:test"
+                                    )
+                                ),
+                                waitStrategy: .port
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_TaskClusterKey.self)],
+                        runtime: PlatformRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDockerfileContainerWithCustomWaitStrategy() throws {
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(waitStrategy: .httpGet(path: "/health"))
+                var web: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var web: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_WebKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _WebKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/web:test"
+                                    )
+                                ),
+                                waitStrategy: .httpGet(path: "/health")
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_WebKey.self)],
+                        runtime: PlatformRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDockerfileContainerWithCustomContextAndDockerfile() throws {
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(context: "services/web", dockerfile: "Dockerfile.test")
+                var api: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var api: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_ApiKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _ApiKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: "services/web",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile.test",
+                                        tag: "local-containers/api:test"
+                                    )
+                                ),
+                                waitStrategy: .port
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_ApiKey.self)],
+                        runtime: PlatformRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations {
                 }
                 """,
             macros: testMacros

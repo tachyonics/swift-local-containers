@@ -67,3 +67,28 @@ public macro LocalStackContainer(
         module: "ContainerMacros",
         type: "LocalStackContainerMacro"
     )
+
+/// Marks a property as a Dockerfile-based service container, generating an
+/// accessor that returns a ``ServiceEndpoint`` resolved from the running
+/// container.
+///
+/// The image is built from a Dockerfile in the local package, started with
+/// auto-detected port mappings (one dynamic host port per `EXPOSE`), and
+/// probed for readiness using the supplied wait strategy.
+///
+/// - Parameters:
+///   - context: Build context directory, resolved relative to the nearest
+///     enclosing `Package.swift`. Defaults to the package root (`.`).
+///   - dockerfile: Path to the Dockerfile within the build context.
+///     Defaults to `"Dockerfile"`.
+///   - waitStrategy: How to determine readiness. Defaults to `.port`.
+@attached(accessor)
+public macro DockerfileContainer(
+    context: String = ".",
+    dockerfile: String = "Dockerfile",
+    waitStrategy: WaitStrategy = .port
+) =
+    #externalMacro(
+        module: "ContainerMacros",
+        type: "DockerfileContainerMacro"
+    )
