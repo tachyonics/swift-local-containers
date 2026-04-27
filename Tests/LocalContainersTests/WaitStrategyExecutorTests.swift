@@ -93,6 +93,32 @@ private func createTCPListener() throws -> (fd: Int32, port: UInt16) {
     return (fd, UInt16(bigEndian: boundAddr.sin_port))
 }
 
+/// Accepts a single connection on the listener, reads the request, writes
+/// a hardcoded HTTP/1.1 response, and closes. Returns when the connection completes.
+private func runOneShotHTTPResponder(
+    listenerFD: Int32,
+    status: Int = 200,
+    body: String = "ok"
+) {
+    var clientAddr = sockaddr_in()
+    var clientLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+    let clientFD = withUnsafeMutablePointer(to: &clientAddr) { ptr in
+        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+            accept(listenerFD, sockaddrPtr, &clientLen)
+        }
+    }
+    guard clientFD >= 0 else { return }
+    defer { close(clientFD) }
+
+    var buf = [UInt8](repeating: 0, count: 1024)
+    _ = buf.withUnsafeMutableBufferPointer { read(clientFD, $0.baseAddress, $0.count) }
+
+    let response =
+        "HTTP/1.1 \(status) X\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
+    let bytes = Array(response.utf8)
+    _ = bytes.withUnsafeBufferPointer { write(clientFD, $0.baseAddress, $0.count) }
+}
+
 // MARK: - checkTCPPort Tests
 
 @Suite("WaitStrategyExecutor - checkTCPPort")
@@ -692,4 +718,170 @@ struct TailLinesTests {
 private actor Flag {
     var value = false
     func set() { value = true }
+}
+
+// MARK: - HTTP GET Strategy Tests
+
+@Suite("WaitStrategyExecutor - HTTPGet")
+struct HTTPGetStrategyTests {
+    @Test("HTTP GET succeeds when responder returns expected status")
+    func httpGetSucceeds() async throws {
+        let (listenerFD, port) = try createTCPListener()
+        defer { close(listenerFD) }
+
+        let responder = Task.detached {
+            runOneShotHTTPResponder(listenerFD: listenerFD, status: 200)
+        }
+
+        let container = RunningContainer(
+            id: "test-http-1",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: [ResolvedPortMapping(containerPort: 8080, hostPort: port)]
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .httpGet(path: "/health"),
+            waitTimeout: .seconds(5)
+        )
+        let runtime = makeNoOpMock()
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
+        await responder.value
+    }
+
+    @Test("HTTP GET succeeds with custom expected status")
+    func httpGetCustomStatus() async throws {
+        let (listenerFD, port) = try createTCPListener()
+        defer { close(listenerFD) }
+
+        let responder = Task.detached {
+            runOneShotHTTPResponder(listenerFD: listenerFD, status: 204)
+        }
+
+        let container = RunningContainer(
+            id: "test-http-2",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: [ResolvedPortMapping(containerPort: 8080, hostPort: port)]
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .httpGet(path: "/health", expectedStatus: 204),
+            waitTimeout: .seconds(5)
+        )
+        let runtime = makeNoOpMock()
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
+        await responder.value
+    }
+
+    @Test("HTTP GET times out when nothing is listening")
+    func httpGetTimesOut() async throws {
+        // Bind and immediately close to obtain a port that is very likely unused.
+        let (listenerFD, port) = try createTCPListener()
+        close(listenerFD)
+
+        let container = RunningContainer(
+            id: "test-http-3",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: [ResolvedPortMapping(containerPort: 8080, hostPort: port)]
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .httpGet(path: "/health"),
+            waitTimeout: .seconds(1)
+        )
+        let runtime = makeNoOpMock()
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .waitStrategyTimedOut(let strategy, _) = containerError
+            else {
+                return false
+            }
+            return strategy == "httpGet"
+        }
+    }
+
+    @Test("HTTP GET throws portNotFound when container has no ports")
+    func httpGetNoPorts() async {
+        let container = RunningContainer(
+            id: "test-http-noport",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: []
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .httpGet(path: "/health"),
+            waitTimeout: .seconds(1)
+        )
+        let runtime = makeNoOpMock()
+
+        await #expect {
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .portNotFound = containerError
+            else {
+                return false
+            }
+            return true
+        }
+    }
+
+    @Test("HTTP GET normalizes path without leading slash")
+    func httpGetPathNormalization() async throws {
+        let (listenerFD, port) = try createTCPListener()
+        defer { close(listenerFD) }
+
+        let responder = Task.detached {
+            runOneShotHTTPResponder(listenerFD: listenerFD, status: 200)
+        }
+
+        let container = RunningContainer(
+            id: "test-http-4",
+            name: "test",
+            image: "test:latest",
+            host: "127.0.0.1",
+            ports: [ResolvedPortMapping(containerPort: 8080, hostPort: port)]
+        )
+        let config = ContainerConfiguration(
+            image: "test:latest",
+            waitStrategy: .httpGet(path: "health"),  // no leading slash
+            waitTimeout: .seconds(5)
+        )
+        let runtime = makeNoOpMock()
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: config,
+            runtime: runtime
+        )
+        await responder.value
+    }
 }

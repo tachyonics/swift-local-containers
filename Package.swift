@@ -70,7 +70,8 @@ let package = Package(
         .target(
             name: "LocalContainers",
             dependencies: [
-                .product(name: "Logging", package: "swift-log")
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "Logging", package: "swift-log"),
             ]
         ),
 
