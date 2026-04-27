@@ -80,10 +80,11 @@ public struct BuildSpec: Sendable {
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            let stderr = String(
-                data: errorPipe.fileHandleForReading.readDataToEndOfFile(),
-                encoding: .utf8
-            ) ?? ""
+            let stderr =
+                String(
+                    data: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+                    encoding: .utf8
+                ) ?? ""
             throw ContainerError.runtimeError(
                 "tar exited with status \(process.terminationStatus) for context \(contextPath): \(stderr)"
             )
