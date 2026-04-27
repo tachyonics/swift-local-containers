@@ -22,7 +22,7 @@ func runDockerBuild(spec: BuildSpec, logger: Logger) async throws {
         "docker", "build",
         "--tag", spec.tag,
         "--file", "\(spec.contextPath)/\(spec.dockerfile)",
-        spec.contextPath
+        spec.contextPath,
     ]
 
     let stdoutPipe = Pipe()
@@ -35,7 +35,7 @@ func runDockerBuild(spec: BuildSpec, logger: Logger) async throws {
         metadata: [
             "tag": "\(spec.tag)",
             "context": "\(spec.contextPath)",
-            "dockerfile": "\(spec.dockerfile)"
+            "dockerfile": "\(spec.dockerfile)",
         ]
     )
 
