@@ -27,6 +27,15 @@ public enum ContainerError: Error, Sendable, CustomStringConvertible {
     /// The container was not found (e.g. already removed).
     case containerNotFound(id: String)
 
+    /// The runtime does not support building images from a Dockerfile.
+    case imageBuildNotSupported(reason: String)
+
+    /// An image build failed during execution.
+    case imageBuildFailed(tag: String, reason: String)
+
+    /// The requested image was not found locally and could not be inspected.
+    case imageNotFound(reference: String)
+
     public var description: String {
         switch self {
         case .imagePullFailed(let image, let reason):
@@ -50,6 +59,12 @@ public enum ContainerError: Error, Sendable, CustomStringConvertible {
             return "Setup step '\(step)' failed: \(reason)"
         case .containerNotFound(let id):
             return "Container not found: \(id)"
+        case .imageBuildNotSupported(let reason):
+            return "Image build is not supported by this runtime: \(reason)"
+        case .imageBuildFailed(let tag, let reason):
+            return "Failed to build image '\(tag)': \(reason)"
+        case .imageNotFound(let reference):
+            return "Image not found: \(reference)"
         }
     }
 }

@@ -22,6 +22,22 @@ public struct DockerContainerRuntime: ContainerRuntime {
         try await client.pullImage(reference)
     }
 
+    public func buildImage(
+        contextTar: Data,
+        dockerfile: String,
+        tag: String
+    ) async throws {
+        try await client.buildImage(
+            contextTar: contextTar,
+            dockerfile: dockerfile,
+            tag: tag
+        )
+    }
+
+    public func inspectImage(reference: String) async throws -> ImageInspection {
+        try await client.inspectImage(reference: reference)
+    }
+
     public func startContainer(
         from configuration: ContainerConfiguration
     ) async throws -> RunningContainer {

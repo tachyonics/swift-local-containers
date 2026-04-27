@@ -1,3 +1,4 @@
+import Foundation
 import Smockable
 import Testing
 
@@ -16,6 +17,8 @@ import Musl
 @Smock(additionalEquatableTypes: [RunningContainer.self])
 protocol TestContainerRuntime: ContainerRuntime {
     func pullImage(_ reference: String) async throws
+    func buildImage(contextTar: Data, dockerfile: String, tag: String) async throws
+    func inspectImage(reference: String) async throws -> ImageInspection
     func startContainer(from configuration: ContainerConfiguration) async throws -> RunningContainer
     func stopContainer(_ container: RunningContainer) async throws
     func removeContainer(_ container: RunningContainer) async throws

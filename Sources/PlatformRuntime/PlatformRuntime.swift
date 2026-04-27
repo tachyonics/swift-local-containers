@@ -1,4 +1,5 @@
 import DockerRuntime
+import Foundation
 import LocalContainers
 
 #if canImport(ContainerizationRuntime)
@@ -40,6 +41,22 @@ public struct PlatformRuntime: ContainerRuntime {
 
     public func pullImage(_ reference: String) async throws {
         try await underlying.pullImage(reference)
+    }
+
+    public func buildImage(
+        contextTar: Data,
+        dockerfile: String,
+        tag: String
+    ) async throws {
+        try await underlying.buildImage(
+            contextTar: contextTar,
+            dockerfile: dockerfile,
+            tag: tag
+        )
+    }
+
+    public func inspectImage(reference: String) async throws -> ImageInspection {
+        try await underlying.inspectImage(reference: reference)
     }
 
     public func startContainer(
