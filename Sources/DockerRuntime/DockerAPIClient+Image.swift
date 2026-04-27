@@ -73,20 +73,7 @@ extension GenericDockerAPIClient {
         }
 
         let decoded = try JSONDecoder().decode(InspectImageResponse.self, from: body)
-        return Self.mapImageInspection(decoded)
-    }
-
-    static func mapImageInspection(_ response: InspectImageResponse) -> ImageInspection {
-        let exposed: [ExposedPort] = (response.config.exposedPorts ?? [:]).keys
-            .compactMap { key in
-                let parts = key.split(separator: "/", maxSplits: 1)
-                guard let port = UInt16(parts[0]) else { return nil }
-                let proto: TransportProtocol =
-                    (parts.count == 2 && parts[1] == "udp") ? .udp : .tcp
-                return ExposedPort(port: port, protocol: proto)
-            }
-            .sorted { ($0.port, $0.protocol.rawValue) < ($1.port, $1.protocol.rawValue) }
-        return ImageInspection(id: response.id, exposedPorts: exposed)
+        return mapImageInspection(decoded)
     }
 
     /// Drain the NDJSON build response stream, returning the last `error` line if any.
@@ -145,4 +132,17 @@ extension GenericDockerAPIClient {
         guard !trimmed.isEmpty else { return nil }
         return try? decoder.decode(BuildImageProgress.self, from: Data(trimmed.utf8))
     }
+}
+
+func mapImageInspection(_ response: InspectImageResponse) -> ImageInspection {
+    let exposed: [ExposedPort] = (response.config.exposedPorts ?? [:]).keys
+        .compactMap { key in
+            let parts = key.split(separator: "/", maxSplits: 1)
+            guard let port = UInt16(parts[0]) else { return nil }
+            let proto: TransportProtocol =
+                (parts.count == 2 && parts[1] == "udp") ? .udp : .tcp
+            return ExposedPort(port: port, protocol: proto)
+        }
+        .sorted { ($0.port, $0.protocol.rawValue) < ($1.port, $1.protocol.rawValue) }
+    return ImageInspection(id: response.id, exposedPorts: exposed)
 }

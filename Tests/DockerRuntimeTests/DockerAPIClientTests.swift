@@ -692,7 +692,7 @@ struct InspectImageTests {
 
 // MARK: - mapImageInspection (pure)
 
-@Suite("DockerAPIClient.mapImageInspection")
+@Suite("mapImageInspection")
 struct MapImageInspectionTests {
     @Test("Sorts ports deterministically by (port, protocol)")
     func sortsPorts() {
@@ -701,16 +701,16 @@ struct MapImageInspectionTests {
             config: .init(exposedPorts: [
                 "9000/udp": EmptyObject(),
                 "80/tcp": EmptyObject(),
-                "8080/tcp": EmptyObject(),
+                "8080/tcp": EmptyObject()
             ])
         )
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.mapImageInspection(response)
+        let result = mapImageInspection(response)
 
         #expect(
             result.exposedPorts == [
                 ExposedPort(port: 80, protocol: .tcp),
                 ExposedPort(port: 8080, protocol: .tcp),
-                ExposedPort(port: 9000, protocol: .udp),
+                ExposedPort(port: 9000, protocol: .udp)
             ]
         )
     }
@@ -721,10 +721,10 @@ struct MapImageInspectionTests {
             id: "sha256:x",
             config: .init(exposedPorts: [
                 "not-a-port/tcp": EmptyObject(),
-                "8080/tcp": EmptyObject(),
+                "8080/tcp": EmptyObject()
             ])
         )
-        let result = GenericDockerAPIClient<MockTestHTTPExecutor>.mapImageInspection(response)
+        let result = mapImageInspection(response)
 
         #expect(result.exposedPorts == [ExposedPort(port: 8080, protocol: .tcp)])
     }

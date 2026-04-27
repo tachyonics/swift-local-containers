@@ -160,14 +160,14 @@ public struct PullImageProgress: Codable, Sendable {
 
 // MARK: - Build Image
 
-public struct BuildImageProgress: Codable, Sendable {
-    public var stream: String?
-    public var error: String?
-    public var aux: BuildImageAux?
+package struct BuildImageProgress: Codable, Sendable {
+    var stream: String?
+    var error: String?
+    var aux: BuildImageAux?
 }
 
-public struct BuildImageAux: Codable, Sendable {
-    public var id: String?
+package struct BuildImageAux: Codable, Sendable {
+    var id: String?
 
     private enum CodingKeys: String, CodingKey {
         case id = "ID"
@@ -176,17 +176,17 @@ public struct BuildImageAux: Codable, Sendable {
 
 // MARK: - Inspect Image
 
-public struct InspectImageResponse: Codable, Sendable {
-    public var id: String
-    public var config: ImageConfig
+package struct InspectImageResponse: Codable, Sendable {
+    var id: String
+    var config: ImageConfig
 
     private enum CodingKeys: String, CodingKey {
         case id = "Id"
         case config = "Config"
     }
 
-    public struct ImageConfig: Codable, Sendable {
-        public var exposedPorts: [String: EmptyObject]?
+    struct ImageConfig: Codable, Sendable {
+        var exposedPorts: [String: EmptyObject]?
 
         private enum CodingKeys: String, CodingKey {
             case exposedPorts = "ExposedPorts"
