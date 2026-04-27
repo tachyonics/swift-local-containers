@@ -24,7 +24,7 @@ extension GenericDockerAPIClient {
             query: [
                 ("t", tag),
                 ("dockerfile", dockerfile),
-                ("rm", "1")
+                ("rm", "1"),
             ]
         )
 
