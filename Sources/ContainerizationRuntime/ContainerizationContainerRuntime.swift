@@ -18,11 +18,7 @@ public struct ContainerizationContainerRuntime: ContainerRuntime, ImageBuildingR
         try await manager.pullImage(reference)
     }
 
-    package func buildImage(
-        contextTar: Data,
-        dockerfile: String,
-        tag: String
-    ) async throws {
+    package func buildImage(spec: BuildSpec) async throws {
         throw ContainerError.imageBuildNotSupported(
             reason:
                 "Apple's Containerization framework does not expose an in-process image-build API. "

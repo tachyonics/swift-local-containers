@@ -1,5 +1,3 @@
-import Foundation
-
 /// A ``ContainerRuntime`` that can additionally build images from a Dockerfile
 /// and inspect image metadata.
 ///
@@ -8,16 +6,16 @@ import Foundation
 /// end-users compose with the public ``ContainerRuntime`` protocol; the
 /// build/inspect surface is an implementation detail of swift-local-containers.
 package protocol ImageBuildingRuntime: ContainerRuntime {
-    /// Build an OCI image from a tarred build context.
+    /// Build an OCI image from a Dockerfile-based ``BuildSpec``.
+    ///
+    /// Implementations are expected to support BuildKit features that modern
+    /// Dockerfiles depend on (`# syntax=docker/dockerfile:1`,
+    /// `RUN --mount=type=cache`, etc.). The default `DockerContainerRuntime`
+    /// implementation shells out to the local `docker` CLI for this reason.
     ///
     /// Throws ``ContainerError/imageBuildNotSupported(reason:)`` on runtimes
     /// that have no programmatic build path (e.g. Apple Containerization).
-    ///
-    /// - Parameters:
-    ///   - contextTar: Build context as an uncompressed tar archive.
-    ///   - dockerfile: Path to the Dockerfile within the context (default `"Dockerfile"`).
-    ///   - tag: Tag to assign to the built image.
-    func buildImage(contextTar: Data, dockerfile: String, tag: String) async throws
+    func buildImage(spec: BuildSpec) async throws
 
     /// Inspect an OCI image by reference and return its metadata.
     ///
