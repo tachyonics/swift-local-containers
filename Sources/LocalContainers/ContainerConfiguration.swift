@@ -112,4 +112,21 @@ public struct ContainerConfiguration: Sendable {
             waitTimeout: waitTimeout
         )
     }
+
+    /// Returns a copy with the given environment, replacing any existing entries.
+    /// Used by the trait to merge dynamic env (from a spec's `environmentProvider`)
+    /// over static env before starting the container.
+    public func with(environment: [String: String]) -> ContainerConfiguration {
+        ContainerConfiguration(
+            image: image,
+            ports: ports,
+            environment: environment,
+            volumes: volumes,
+            name: name,
+            command: command,
+            waitStrategy: waitStrategy,
+            healthCheck: healthCheck,
+            waitTimeout: waitTimeout
+        )
+    }
 }

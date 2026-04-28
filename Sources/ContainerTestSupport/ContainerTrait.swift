@@ -54,8 +54,14 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
                     "Starting container",
                     metadata: ["image": "\(spec.configuration.image.imageReference)"]
                 )
+                let mergedEnv = resolveEnvironment(
+                    for: spec,
+                    started: started,
+                    stackOutputs: stackOutputs,
+                    typedOutputs: typedOutputs
+                )
                 let preparedConfig = try await prepareImage(
-                    for: spec.configuration,
+                    for: spec.configuration.with(environment: mergedEnv),
                     using: runtime,
                     logger: logger
                 )
@@ -101,7 +107,13 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
             throw error
         }
 
-        // Teardown — run setup teardowns, then stop and remove containers
+        await teardown(started: started, logger: logger)
+    }
+
+    private func teardown(
+        started: [ObjectIdentifier: RunningContainer],
+        logger: Logger
+    ) async {
         for key in keys {
             guard let container = started[key.id] else { continue }
 

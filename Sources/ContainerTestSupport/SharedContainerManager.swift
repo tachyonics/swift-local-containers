@@ -42,8 +42,14 @@ public actor SharedContainerManager {
             metadata: ["key": "\(key)", "image": "\(spec.configuration.image.imageReference)"]
         )
 
+        let mergedEnv = resolveEnvironment(
+            for: spec,
+            started: containers,
+            stackOutputs: stackOutputs,
+            typedOutputs: typedOutputs
+        )
         let preparedConfig = try await prepareImage(
-            for: spec.configuration,
+            for: spec.configuration.with(environment: mergedEnv),
             using: runtime,
             logger: logger
         )
@@ -99,8 +105,14 @@ public actor SharedContainerManager {
             metadata: ["key": "\(key.name)", "image": "\(spec.configuration.image.imageReference)"]
         )
 
+        let mergedEnv = resolveEnvironment(
+            for: spec,
+            started: containers,
+            stackOutputs: stackOutputs,
+            typedOutputs: typedOutputs
+        )
         let preparedConfig = try await prepareImage(
-            for: spec.configuration,
+            for: spec.configuration.with(environment: mergedEnv),
             using: runtime,
             logger: logger
         )
