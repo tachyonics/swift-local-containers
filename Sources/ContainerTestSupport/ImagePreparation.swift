@@ -1,6 +1,36 @@
 import LocalContainers
 import Logging
 
+/// Resolves the effective environment to start a container with, merging the
+/// spec's static `configuration.environment` with the dynamic environment
+/// produced by `spec.environmentProvider` (if any).
+///
+/// The provider is evaluated against a partial ``ContainerTestContext`` made
+/// from the containers/outputs that have already started in this trait run.
+/// That lets the closure read sibling outputs through the macro-generated
+/// computed properties on the enclosing `@Containers` struct.
+///
+/// Dynamic values win on key collision.
+package func resolveEnvironment(
+    for spec: ContainerSpec,
+    started: [ObjectIdentifier: RunningContainer],
+    stackOutputs: [ObjectIdentifier: [String: String]],
+    typedOutputs: [ObjectIdentifier: any Sendable]
+) -> [String: String] {
+    guard let provider = spec.environmentProvider else {
+        return spec.configuration.environment
+    }
+    let partialContext = ContainerTestContext(
+        containers: started,
+        stackOutputs: stackOutputs,
+        typedOutputs: typedOutputs
+    )
+    let dynamic = ContainerTestContext.$current.withValue(partialContext) {
+        provider()
+    }
+    return spec.configuration.environment.merging(dynamic) { _, new in new }
+}
+
 /// Ensures an image is available locally — either by pulling or by building from a Dockerfile —
 /// and returns the configuration to start the container with.
 ///
