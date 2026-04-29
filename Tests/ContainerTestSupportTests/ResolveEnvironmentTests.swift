@@ -43,11 +43,13 @@ struct ResolveEnvironmentTests {
             typedOutputs: [:]
         )
 
-        #expect(result == [
-            "FOO": "static-1",
-            "BAR": "dynamic-2",   // dynamic wins
-            "BAZ": "dynamic-3"
-        ])
+        #expect(
+            result == [
+                "FOO": "static-1",
+                "BAR": "dynamic-2",  // dynamic wins
+                "BAZ": "dynamic-3",
+            ]
+        )
     }
 
     @Test("Provider sees the partial ContainerTestContext during evaluation")
