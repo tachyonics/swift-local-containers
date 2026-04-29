@@ -61,7 +61,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -117,7 +117,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -197,7 +197,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -243,7 +243,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -290,7 +290,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -346,7 +346,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -401,7 +401,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -449,7 +449,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -505,7 +505,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -553,7 +553,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -609,7 +609,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -691,7 +691,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension SharedContainers: ContainerDeclarations {
+                extension SharedContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -746,7 +746,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -799,7 +799,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -852,9 +852,53 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
+            macros: testMacros
+        )
+    }
+
+    func testContainersOnUnsupportedDeclarationEmitsDiagnostic() throws {
+        // @Containers must be attached to a struct, enum, class, or actor —
+        // it generates type-internal members (a ContainerKey enum, a
+        // containerTrait static let, conformance via an extension) that
+        // only make sense inside a named type. Both macro halves
+        // (member + extension) skip emission on this path so the user
+        // sees a single clear error rather than a cascade of follow-on
+        // compile errors against macro-expanded source.
+        assertMacroExpansion(
+            """
+            @Containers
+            extension SomeOther {
+                @Container(image: "redis:7", ports: [6379])
+                var cache: RunningContainer
+            }
+            """,
+            expandedSource: """
+                extension SomeOther {
+                    var cache: RunningContainer {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_CacheKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return container
+                        }
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "@Containers must be attached to a struct, enum, class, or actor.",
+                    line: 1,
+                    column: 1
+                )
+            ],
             macros: testMacros
         )
     }

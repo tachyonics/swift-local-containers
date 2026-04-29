@@ -1,6 +1,22 @@
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
+
+private struct ContainerMacroDiagnostic: DiagnosticMessage {
+    let message: String
+    let diagnosticID: MessageID
+    let severity: DiagnosticSeverity = .error
+
+    static let unsupportedDeclaration = ContainerMacroDiagnostic(
+        message:
+            "@Containers must be attached to a struct, enum, class, or actor.",
+        diagnosticID: MessageID(
+            domain: "ContainerMacros",
+            id: "unsupportedDeclaration"
+        )
+    )
+}
 
 /// Member macro that scans properties for `@Container` / `@LocalStackContainer`
 /// attributes and generates `ContainerKey` enums and a `containerTrait` property.
@@ -11,6 +27,21 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
+        // @Containers fundamentally generates type-internal members (a
+        // ContainerKey enum, a containerTrait static let, etc.) and so must
+        // be attached to something we can extract a name from. Reject anything
+        // else (extensions, protocols) up front with a clear diagnostic
+        // rather than letting any feature that happens to need the name
+        // re-derive its own check or fall through to broken expanded code.
+        guard let typeName = enclosingTypeName(of: declaration) else {
+            throw DiagnosticsError(diagnostics: [
+                Diagnostic(
+                    node: Syntax(node),
+                    message: ContainerMacroDiagnostic.unsupportedDeclaration
+                )
+            ])
+        }
+
         let annotatedProperties = collectAnnotatedProperties(from: declaration)
 
         guard !annotatedProperties.isEmpty else {
@@ -21,7 +52,10 @@ public struct ContainerDeclarationsMacro: MemberMacro {
 
         // Generate ContainerKey enum for each annotated property
         for property in annotatedProperties {
-            let keyDecl = try generateKeyDeclaration(for: property)
+            let keyDecl = try generateKeyDeclaration(
+                for: property,
+                enclosingTypeName: typeName
+            )
             declarations.append(keyDecl)
         }
 
@@ -30,6 +64,16 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         declarations.append(traitDecl)
 
         return declarations
+    }
+
+    private static func enclosingTypeName(
+        of declaration: some DeclGroupSyntax
+    ) -> String? {
+        if let structDecl = declaration.as(StructDeclSyntax.self) { return structDecl.name.text }
+        if let enumDecl = declaration.as(EnumDeclSyntax.self) { return enumDecl.name.text }
+        if let classDecl = declaration.as(ClassDeclSyntax.self) { return classDecl.name.text }
+        if let actorDecl = declaration.as(ActorDeclSyntax.self) { return actorDecl.name.text }
+        return nil
     }
 
     // MARK: - Property Collection
@@ -88,7 +132,8 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                             kind: .dockerfile(
                                 context: parsed.context,
                                 dockerfile: parsed.dockerfile,
-                                waitStrategy: parsed.waitStrategy
+                                waitStrategy: parsed.waitStrategy,
+                                environment: parsed.environment
                             )
                         )
                     )
@@ -158,18 +203,23 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         return "test-stack"
     }
 
+    struct ParsedDockerfileAttribute {
+        var context: String = "."
+        var dockerfile: String = "Dockerfile"
+        var waitStrategy: String = ".port"
+        var environment: String?
+    }
+
     private static func parseDockerfileAttribute(
         _ attr: AttributeSyntax
-    ) -> (context: String, dockerfile: String, waitStrategy: String) {
-        var context = "."
-        var dockerfile = "Dockerfile"
-        var waitStrategy = ".port"
+    ) -> ParsedDockerfileAttribute {
+        var parsed = ParsedDockerfileAttribute()
 
         guard
             let arguments = attr.arguments?
                 .as(LabeledExprListSyntax.self)
         else {
-            return (context, dockerfile, waitStrategy)
+            return parsed
         }
 
         for arg in arguments {
@@ -178,26 +228,32 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 let stringLiteral = arg.expression
                     .as(StringLiteralExprSyntax.self)
             {
-                context = stringLiteral.segments.description
+                parsed.context = stringLiteral.segments.description
             } else if label == "dockerfile",
                 let stringLiteral = arg.expression
                     .as(StringLiteralExprSyntax.self)
             {
-                dockerfile = stringLiteral.segments.description
+                parsed.dockerfile = stringLiteral.segments.description
             } else if label == "waitStrategy" {
                 // Pass the expression through verbatim — it's a WaitStrategy enum
                 // value (e.g. `.port`, `.httpGet(path: "/health")`).
-                waitStrategy = arg.expression.description
+                parsed.waitStrategy = arg.expression.description
+            } else if label == "environment" {
+                // Pass the expression through verbatim — closure or key path of
+                // type `(Outer) -> [String: String]`. Splatted into a typed
+                // static let so the enclosing struct's name resolves naturally.
+                parsed.environment = arg.expression.description
             }
         }
 
-        return (context, dockerfile, waitStrategy)
+        return parsed
     }
 
     // MARK: - Code Generation
 
     private static func generateKeyDeclaration(
-        for property: AnnotatedProperty
+        for property: AnnotatedProperty,
+        enclosingTypeName: String
     ) throws -> DeclSyntax {
         let keyName = "_\(property.name.capitalizedFirst)Key"
 
@@ -241,8 +297,32 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 }
                 """
 
-        case .dockerfile(let context, let dockerfile, let waitStrategy):
-            let tag = "local-containers/\(property.name.lowercased()):test"
+        case .dockerfile(let context, let dockerfile, let waitStrategy, let environment):
+            return generateDockerfileKey(
+                keyName: keyName,
+                propertyName: property.name,
+                context: context,
+                dockerfile: dockerfile,
+                waitStrategy: waitStrategy,
+                environment: environment,
+                enclosingTypeName: enclosingTypeName
+            )
+        }
+    }
+
+    private static func generateDockerfileKey(
+        keyName: String,
+        propertyName: String,
+        context: String,
+        dockerfile: String,
+        waitStrategy: String,
+        environment: String?,
+        enclosingTypeName: String
+    ) -> DeclSyntax {
+        let tag = "local-containers/\(propertyName.lowercased()):test"
+
+        // No env provider: simple ContainerSpec with only configuration.
+        guard let environment else {
             return """
                 private enum \(raw: keyName): ContainerKey {
                     static let spec = ContainerSpec(
@@ -261,6 +341,34 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 }
                 """
         }
+
+        // With env provider: typed static let splats the user's expression at
+        // a known type so KeyPath/closure expressions resolve against the
+        // enclosing @Containers struct. The wrapper closure on the spec
+        // constructs an instance and invokes the typed provider — the trait
+        // sets up a partial ContainerTestContext before calling it.
+        return """
+            private enum \(raw: keyName): ContainerKey {
+                static let _envProvider:
+                    @Sendable (\(raw: enclosingTypeName)) -> [String: String] =
+                    \(raw: environment)
+
+                static let spec = ContainerSpec(
+                    ContainerConfiguration(
+                        image: .build(
+                            BuildSpec.resolvedAgainstPackage(
+                                contextPath: \(literal: context),
+                                from: #filePath,
+                                dockerfile: \(literal: dockerfile),
+                                tag: \(literal: tag)
+                            )
+                        ),
+                        waitStrategy: \(raw: waitStrategy)
+                    ),
+                    environmentProvider: { _envProvider(\(raw: enclosingTypeName)()) }
+                )
+            }
+            """
     }
 
     private static func generateContainerTrait(
@@ -301,13 +409,27 @@ extension ContainerDeclarationsMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
+        // Match the member-macro's contract — only emit the conformance
+        // extension when @Containers is attached to a named type. The
+        // member-macro's diagnostic is the user-visible error; staying
+        // silent here avoids a confusing follow-on compile error.
+        guard enclosingTypeName(of: declaration) != nil else {
+            return []
+        }
+
         let annotatedProperties = collectAnnotatedProperties(from: declaration)
         guard !annotatedProperties.isEmpty else {
             return []
         }
 
+        // `Sendable` is required so a `@Sendable` environmentProvider closure
+        // (emitted by `@DockerfileContainer(environment:)`) can construct an
+        // instance of the enclosing struct to read sibling outputs through the
+        // macro-generated computed properties. For the typical @Containers
+        // struct (only computed properties reading @TaskLocal), conformance
+        // is auto-synthesized.
         let extensionDecl: DeclSyntax = """
-            extension \(type.trimmed): ContainerDeclarations {}
+            extension \(type.trimmed): ContainerDeclarations, Sendable {}
             """
 
         guard let extensionSyntax = extensionDecl.as(ExtensionDeclSyntax.self) else {
@@ -328,7 +450,12 @@ struct AnnotatedProperty {
     enum Kind {
         case container(image: String, ports: [String])
         case localStack(stackName: String)
-        case dockerfile(context: String, dockerfile: String, waitStrategy: String)
+        case dockerfile(
+            context: String,
+            dockerfile: String,
+            waitStrategy: String,
+            environment: String?
+        )
     }
 }
 
