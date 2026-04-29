@@ -2,12 +2,6 @@ import LocalContainers
 
 /// Helpers for constructing AWS endpoint URLs pointing at a LocalStack container.
 public struct LocalStackEndpoint: Sendable {
-    /// Public DNS name LocalStack maintains as an A record pointing at
-    /// 127.0.0.1. Connecting via this hostname allows TLS to validate
-    /// against LocalStack's public certificate, which is issued for this
-    /// domain.
-    public static let localstackHostname = "localhost.localstack.cloud"
-
     private let container: RunningContainer
     private let gatewayPort: UInt16
 
@@ -16,20 +10,24 @@ public struct LocalStackEndpoint: Sendable {
         self.gatewayPort = gatewayPort
     }
 
-    /// Raw HTTP gateway endpoint URL (e.g. `http://127.0.0.1:49152`).
-    /// Use for raw HTTP clients; AWS SDK clients should prefer
-    /// ``awsEndpoint()``.
+    /// HTTP gateway endpoint URL (e.g. `http://172.17.0.1:49152`). Suitable
+    /// for raw HTTP clients.
     public func gatewayEndpoint() throws -> String {
         let hostPort = try container.mappedPort(gatewayPort)
         return "http://\(container.host):\(hostPort)"
     }
 
-    /// HTTPS endpoint URL suitable for passing to AWS SDK configuration or CLI.
-    /// Uses the ``localstackHostname`` so TLS validates against LocalStack's
-    /// public certificate. LocalStack routes all services through the gateway.
+    /// Endpoint URL suitable for passing to AWS SDK configuration. Equivalent
+    /// to ``gatewayEndpoint()`` — same scheme, same host, same port.
+    ///
+    /// The host value comes from ``RunningContainer/host``, which is the
+    /// Docker bridge gateway IP — reachable from both the test runner on the
+    /// host and from sibling containers on the same bridge. The same URL
+    /// works for direct host-to-LocalStack calls and for cross-container env
+    /// injection (e.g. a ``@DockerfileContainer`` reading
+    /// ``StackOutputs/awsEndpoint`` via an `environment:` closure).
     public func awsEndpoint() throws -> String {
-        let hostPort = try container.mappedPort(gatewayPort)
-        return "https://\(Self.localstackHostname):\(hostPort)"
+        try gatewayEndpoint()
     }
 
     /// Endpoint URL for a specific AWS service. Same as ``awsEndpoint()``

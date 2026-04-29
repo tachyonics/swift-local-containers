@@ -23,12 +23,12 @@ struct LocalStackEndpointTests {
         #expect(url == "http://127.0.0.1:49152")
     }
 
-    @Test("awsEndpoint returns HTTPS URL with localstackHostname")
+    @Test("awsEndpoint returns the same URL as gatewayEndpoint")
     func awsEndpoint() throws {
         let ep = LocalStackEndpoint(container: Self.container)
         let aws = try ep.awsEndpoint()
 
-        #expect(aws == "https://localhost.localstack.cloud:49152")
+        #expect(aws == "http://127.0.0.1:49152")
     }
 
     @Test("endpoint(for:) returns the awsEndpoint for any service")
@@ -36,7 +36,7 @@ struct LocalStackEndpointTests {
         let ep = LocalStackEndpoint(container: Self.container)
         let url = try ep.endpoint(for: "s3")
 
-        #expect(url == "https://localhost.localstack.cloud:49152")
+        #expect(url == "http://127.0.0.1:49152")
     }
 
     @Test("Throws when gateway port is not mapped")

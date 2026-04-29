@@ -178,15 +178,14 @@ struct DockerContainerRuntimeBuildRequestTests {
 
     // MARK: - resolveHost
 
-    @Test("resolveHost uses gateway when inside Docker, 127.0.0.1 otherwise")
+    @Test("resolveHost prefers the bridge gateway when available")
     func resolveHostWithGateway() {
-        let host = runtime.resolveHost(gateway: "172.17.0.1")
-        let inDocker = FileManager.default.fileExists(atPath: "/.dockerenv")
-        if inDocker {
-            #expect(host == "172.17.0.1")
-        } else {
-            #expect(host == "127.0.0.1")
-        }
+        // The gateway IP is reachable from both the host (via the bridge
+        // interface) and from sibling containers on the same bridge — using
+        // it as the canonical host lets a single `container.host` value
+        // work for direct host-to-container connections AND for cross-
+        // container env injection.
+        #expect(runtime.resolveHost(gateway: "172.17.0.1") == "172.17.0.1")
     }
 
     @Test("resolveHost returns 127.0.0.1 when gateway is nil")

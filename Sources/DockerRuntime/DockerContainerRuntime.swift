@@ -122,13 +122,17 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
 
     /// Determines the host address to use for connecting to container ports.
     ///
-    /// When running inside a Docker container (detected via `/.dockerenv`),
-    /// forwarded ports are on the Docker host, not `127.0.0.1` inside the
-    /// current container. In that case, the Docker bridge gateway IP is used.
+    /// Prefer the bridge gateway IP whenever Docker provides one. The gateway
+    /// is reachable from both the host (it's the host's bridge interface) AND
+    /// from sibling containers on the same bridge (it's their default route to
+    /// the host). Using a single host value that works in both scenarios is
+    /// what makes cross-container env injection — sharing a `LocalStackContainer`
+    /// endpoint with a `@DockerfileContainer` sibling — work without
+    /// per-deployment workarounds. Falls back to 127.0.0.1 only when no gateway
+    /// is available (e.g., custom networks without a bridge gateway, or runtimes
+    /// that don't populate it).
     func resolveHost(gateway: String?) -> String {
-        if FileManager.default.fileExists(atPath: "/.dockerenv"),
-            let gateway, !gateway.isEmpty
-        {
+        if let gateway, !gateway.isEmpty {
             return gateway
         }
         return "127.0.0.1"
