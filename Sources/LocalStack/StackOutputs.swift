@@ -1,4 +1,5 @@
 import Foundation
+import LocalContainers
 
 /// A type that represents the typed outputs of a CloudFormation stack.
 ///
@@ -37,9 +38,26 @@ public protocol StackOutputs: Sendable {
 extension StackOutputs {
     /// The AWS endpoint URL for the LocalStack container backing this stack.
     ///
-    /// Injected automatically by ``CloudFormationSetup/fetchOutputs(from:)``.
+    /// Returns a URL appropriate for the current scope:
+    /// - In test scope (the default): a host-relative URL using LocalStack's
+    ///   public hostname + HTTPS, suitable for AWS SDK clients and tools like
+    ///   `cdklocal` that validate TLS against the published certificate.
+    /// - Inside a `@DockerfileContainer(environment:)` provider closure (where
+    ///   ``ContainerExecutionScope/isInSiblingEnvironmentResolution`` is set
+    ///   by the trait): a URL using the LocalStack container's bridge gateway
+    ///   IP, reachable from sibling containers on the same Docker bridge.
+    ///
+    /// Both URL forms are populated into ``rawOutputs`` by
+    /// ``CloudFormationSetup/fetchOutputs(from:)``; this property picks the
+    /// right one based on caller scope, so user code can write
+    /// `c.aws.awsEndpoint` everywhere without thinking about which URL form
+    /// is reachable from where.
     public var awsEndpoint: String {
-        guard let endpoint = rawOutputs["_awsEndpoint"] else {
+        let key =
+            ContainerExecutionScope.isInSiblingEnvironmentResolution
+            ? "_awsEndpointForSiblings"
+            : "_awsEndpoint"
+        guard let endpoint = rawOutputs[key] else {
             preconditionFailure(
                 "No AWS endpoint — is this used inside a ContainerTrait scope?"
             )

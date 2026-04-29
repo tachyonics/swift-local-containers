@@ -231,9 +231,11 @@ extension CloudFormationSetup: OutputProducingSetup {
     public func fetchOutputs(
         from container: RunningContainer
     ) async throws -> [String: String] {
-        let endpoint = try LocalStackEndpoint(container: container).awsEndpoint()
+        let endpoints = LocalStackEndpoint(container: container)
+        let endpoint = try endpoints.awsEndpoint()
         var outputs = extractOutputs(from: try await describeStack(endpoint: endpoint))
         outputs["_awsEndpoint"] = endpoint
+        outputs["_awsEndpointForSiblings"] = try endpoints.awsEndpointForSiblings()
         return outputs
     }
 }
