@@ -4,11 +4,19 @@
 # echoes $INJECTED_VAR as the response body — proves an env var supplied by
 # @DockerfileContainer(environment:) reaches the running container.
 #
-# Alpine + busybox nc keeps the build to a ~3MB image and a few seconds
-# (vs the Swift toolchain pull a real fixture would need). The explicit
-# `Connection: close` tells AsyncHTTPClient to expect connection close
-# rather than keep-alive — busybox nc closes after one response.
+# Alpine + socat keeps the build small and fast (no Swift toolchain pull).
+# socat with `fork` spawns a fresh handler per connection, so the
+# `.port` wait strategy's TCP probe and the test's HTTP request can both
+# complete reliably — busybox `nc -l` handles only one connection before
+# exiting and was racy in CI between the wait and the test request.
+#
+# The per-connection HTTP response is built in echo.sh rather than inline
+# in CMD: too many layers of quoting (Dockerfile JSON → sh -c → socat
+# SYSTEM → handler shell) garble the printf format string when inlined.
 
 FROM alpine:latest
+RUN apk add --no-cache socat
+COPY echo.sh /echo.sh
+RUN chmod +x /echo.sh
 EXPOSE 8080
-CMD ["sh", "-c", "while true; do printf 'HTTP/1.1 200 OK\\r\\nContent-Length: %d\\r\\nConnection: close\\r\\n\\r\\n%s' ${#INJECTED_VAR} \"$INJECTED_VAR\" | nc -l -p 8080; done"]
+CMD ["socat", "TCP-LISTEN:8080,fork,reuseaddr", "SYSTEM:/echo.sh"]
