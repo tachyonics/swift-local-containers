@@ -31,7 +31,7 @@
 /// struct SuiteB { ... }
 /// ```
 @attached(member, names: arbitrary)
-@attached(extension, conformances: ContainerDeclarations)
+@attached(extension, conformances: ContainerDeclarations, Sendable)
 public macro Containers() =
     #externalMacro(
         module: "ContainerMacros",
@@ -82,11 +82,20 @@ public macro LocalStackContainer(
 ///   - dockerfile: Path to the Dockerfile within the build context.
 ///     Defaults to `"Dockerfile"`.
 ///   - waitStrategy: How to determine readiness. Defaults to `.port`.
+///   - environment: Optional dynamic environment for the container. Pass a
+///     closure or key path of type `(Outer) -> [String: String]` where
+///     `Outer` is the enclosing `@Containers` struct — siblings are
+///     accessible through their macro-generated computed properties and
+///     evaluate against the partial context the trait sets up just before
+///     this container starts. Result is merged over any static
+///     `environment` on the container's `ContainerConfiguration`
+///     (dynamic values win on collision).
 @attached(accessor)
 public macro DockerfileContainer(
     context: String = ".",
     dockerfile: String = "Dockerfile",
-    waitStrategy: WaitStrategy = .port
+    waitStrategy: WaitStrategy = .port,
+    environment: (any Sendable)? = nil
 ) =
     #externalMacro(
         module: "ContainerMacros",

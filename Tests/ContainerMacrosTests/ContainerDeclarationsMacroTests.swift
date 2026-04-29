@@ -61,7 +61,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -117,7 +117,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -197,7 +197,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -243,7 +243,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -290,7 +290,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -346,7 +346,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -401,7 +401,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -449,7 +449,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -505,7 +505,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -553,7 +553,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -609,7 +609,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyContainers: ContainerDeclarations {
+                extension MyContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -691,7 +691,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension SharedContainers: ContainerDeclarations {
+                extension SharedContainers: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -746,7 +746,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -799,7 +799,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
@@ -852,7 +852,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                     )
                 }
 
-                extension MyTests: ContainerDeclarations {
+                extension MyTests: ContainerDeclarations, Sendable {
                 }
                 """,
             macros: testMacros
