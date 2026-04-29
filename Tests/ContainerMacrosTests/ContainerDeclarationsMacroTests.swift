@@ -742,7 +742,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
 
                     static let containerTrait = ContainerTrait(
                         keys: [ErasedContainerKey(_TaskClusterKey.self)],
-                        runtime: PlatformRuntime()
+                        runtime: DockerContainerRuntime()
                     )
                 }
 
@@ -795,7 +795,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
 
                     static let containerTrait = ContainerTrait(
                         keys: [ErasedContainerKey(_WebKey.self)],
-                        runtime: PlatformRuntime()
+                        runtime: DockerContainerRuntime()
                     )
                 }
 
@@ -848,8 +848,147 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
 
                     static let containerTrait = ContainerTrait(
                         keys: [ErasedContainerKey(_ApiKey.self)],
-                        runtime: PlatformRuntime()
+                        runtime: DockerContainerRuntime()
                     )
+                }
+
+                extension MyTests: ContainerDeclarations, Sendable {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDockerfileContainerWithKeyPathEnvironment() throws {
+        // Key-path form coerces to (Outer) -> [String: String] via SE-0249.
+        // The macro splats the expression verbatim into a typed `_envProvider`
+        // static let, so Swift can do the coercion against the typed annotation.
+        // The wrapper closure on the spec constructs MyTests() and invokes
+        // _envProvider — the trait sets up a partial ContainerTestContext
+        // before calling it.
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(environment: \\.someEnv)
+                var taskCluster: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var taskCluster: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_TaskClusterKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _TaskClusterKey: ContainerKey {
+                        static let _envProvider:
+                            @Sendable (MyTests) -> [String: String] =
+                            \\.someEnv
+
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/taskcluster:test"
+                                    )
+                                ),
+                                waitStrategy: .port
+                            ),
+                            environmentProvider: {
+                                _envProvider(MyTests())
+                            }
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_TaskClusterKey.self)],
+                        runtime: DockerContainerRuntime()
+                    )
+
+                    init() {
+                    }
+                }
+
+                extension MyTests: ContainerDeclarations, Sendable {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDockerfileContainerWithClosureEnvironment() throws {
+        // Closure form: the body is splatted into the typed `_envProvider`
+        // static let. Swift infers the parameter type from the let's annotation,
+        // so the closure body can dot into siblings naturally.
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(
+                    environment: { c in ["TASK_TABLE_NAME": c.aws.taskTableName] }
+                )
+                var taskCluster: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var taskCluster: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_TaskClusterKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _TaskClusterKey: ContainerKey {
+                        static let _envProvider:
+                            @Sendable (MyTests) -> [String: String] =
+                            { c in
+                            ["TASK_TABLE_NAME": c.aws.taskTableName]
+                        }
+
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/taskcluster:test"
+                                    )
+                                ),
+                                waitStrategy: .port
+                            ),
+                            environmentProvider: {
+                                _envProvider(MyTests())
+                            }
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_TaskClusterKey.self)],
+                        runtime: DockerContainerRuntime()
+                    )
+
+                    init() {
+                    }
                 }
 
                 extension MyTests: ContainerDeclarations, Sendable {

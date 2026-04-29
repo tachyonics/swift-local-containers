@@ -1,4 +1,5 @@
 @_exported import ContainerTestSupport
+@_exported import DockerRuntime
 @_exported import LocalContainers
 @_exported import LocalStack
 @_exported import PlatformRuntime
@@ -95,7 +96,7 @@ public macro DockerfileContainer(
     context: String = ".",
     dockerfile: String = "Dockerfile",
     waitStrategy: WaitStrategy = .port,
-    environment: (any Sendable)? = nil
+    environment: Any? = nil
 ) =
     #externalMacro(
         module: "ContainerMacros",

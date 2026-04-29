@@ -63,6 +63,21 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         let traitDecl = generateContainerTrait(for: annotatedProperties)
         declarations.append(traitDecl)
 
+        // When any @DockerfileContainer property uses `environment:`, the
+        // generated wrapper closure constructs an instance of the enclosing
+        // struct via `Self()`. Swift's auto-synthesized memberwise init is
+        // calculated against the pre-accessor-macro source where the
+        // properties are still treated as stored, which gives the init
+        // unwanted parameters and breaks `Self()`. Emitting an explicit
+        // no-arg init suppresses auto-synthesis; the post-accessor-expansion
+        // properties are computed, so init() needs no body.
+        if annotatedProperties.contains(where: { property in
+            if case .dockerfile(_, _, _, .some) = property.kind { return true }
+            return false
+        }) {
+            declarations.append("init() {}")
+        }
+
         return declarations
     }
 
@@ -390,10 +405,22 @@ public struct ContainerDeclarationsMacro: MemberMacro {
             }
         }.joined(separator: ", ")
 
+        // @DockerfileContainer requires image build, which only Docker
+        // currently supports — `ContainerizationContainerRuntime.buildImage`
+        // throws `imageBuildNotSupported`. Pick Docker explicitly so the
+        // user doesn't get a runtime "not supported" error when running
+        // under the Containerization trait. For specs without any build
+        // source, PlatformRuntime's pull-only path works on either backend.
+        let needsDocker = properties.contains { property in
+            if case .dockerfile = property.kind { return true }
+            return false
+        }
+        let runtimeExpression = needsDocker ? "DockerContainerRuntime()" : "PlatformRuntime()"
+
         return """
             static let containerTrait = ContainerTrait(
                 keys: [\(raw: keyEntries)],
-                runtime: PlatformRuntime()
+                runtime: \(raw: runtimeExpression)
             )
             """
     }
