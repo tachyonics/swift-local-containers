@@ -859,33 +859,34 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
         )
     }
 
-    func testDockerfileContainerEnvironmentRequiresNamedType() throws {
-        // @Containers attached to an extension is unsupported when any
-        // @DockerfileContainer property has `environment:` supplied — the
-        // generated wrapper closure needs to construct an instance of a
-        // named enclosing type. The macro emits a diagnostic; both halves
-        // (member + extension) skip emission so the user sees a single
-        // clear error rather than a cascade of follow-on compile errors.
+    func testContainersOnUnsupportedDeclarationEmitsDiagnostic() throws {
+        // @Containers must be attached to a struct, enum, class, or actor —
+        // it generates type-internal members (a ContainerKey enum, a
+        // containerTrait static let, conformance via an extension) that
+        // only make sense inside a named type. Both macro halves
+        // (member + extension) skip emission on this path so the user
+        // sees a single clear error rather than a cascade of follow-on
+        // compile errors against macro-expanded source.
         assertMacroExpansion(
             """
             @Containers
             extension SomeOther {
-                @DockerfileContainer(environment: { c in [:] })
-                var taskCluster: ServiceEndpoint
+                @Container(image: "redis:7", ports: [6379])
+                var cache: RunningContainer
             }
             """,
             expandedSource: """
                 extension SomeOther {
-                    var taskCluster: ServiceEndpoint {
+                    var cache: RunningContainer {
                         get {
                             guard let container = try? ContainerTestContext.current?.container(
-                                for: ObjectIdentifier(_TaskClusterKey.self)
+                                for: ObjectIdentifier(_CacheKey.self)
                             ) else {
                                 preconditionFailure(
                                     "No container context — is this test inside a @Suite with containerTrait?"
                                 )
                             }
-                            return ServiceEndpoint(from: container)
+                            return container
                         }
                     }
                 }
@@ -893,9 +894,7 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
             diagnostics: [
                 DiagnosticSpec(
                     message:
-                        "@DockerfileContainer with `environment:` requires the enclosing "
-                        + "@Containers declaration to be a named type "
-                        + "(struct, enum, class, or actor).",
+                        "@Containers must be attached to a struct, enum, class, or actor.",
                     line: 1,
                     column: 1
                 )

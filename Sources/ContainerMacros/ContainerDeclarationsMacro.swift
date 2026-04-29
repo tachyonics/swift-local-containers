@@ -8,14 +8,12 @@ private struct ContainerMacroDiagnostic: DiagnosticMessage {
     let diagnosticID: MessageID
     let severity: DiagnosticSeverity = .error
 
-    static let environmentRequiresNamedType = ContainerMacroDiagnostic(
+    static let unsupportedDeclaration = ContainerMacroDiagnostic(
         message:
-            "@DockerfileContainer with `environment:` requires the enclosing "
-            + "@Containers declaration to be a named type "
-            + "(struct, enum, class, or actor).",
+            "@Containers must be attached to a struct, enum, class, or actor.",
         diagnosticID: MessageID(
             domain: "ContainerMacros",
-            id: "environmentRequiresNamedType"
+            id: "unsupportedDeclaration"
         )
     )
 }
@@ -29,29 +27,25 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
+        // @Containers fundamentally generates type-internal members (a
+        // ContainerKey enum, a containerTrait static let, etc.) and so must
+        // be attached to something we can extract a name from. Reject anything
+        // else (extensions, protocols) up front with a clear diagnostic
+        // rather than letting any feature that happens to need the name
+        // re-derive its own check or fall through to broken expanded code.
+        guard let typeName = enclosingTypeName(of: declaration) else {
+            throw DiagnosticsError(diagnostics: [
+                Diagnostic(
+                    node: Syntax(node),
+                    message: ContainerMacroDiagnostic.unsupportedDeclaration
+                )
+            ])
+        }
+
         let annotatedProperties = collectAnnotatedProperties(from: declaration)
 
         guard !annotatedProperties.isEmpty else {
             return []
-        }
-
-        let typeName = enclosingTypeName(of: declaration)
-
-        // The dockerfile-with-environment path emits code referencing the
-        // enclosing struct by name; if `@Containers` is attached to a decl
-        // we can't name (a protocol or extension), bail with a clear
-        // diagnostic instead of generating broken expanded code.
-        let needsNamedType = annotatedProperties.contains { property in
-            if case .dockerfile(_, _, _, .some) = property.kind { return true }
-            return false
-        }
-        if needsNamedType, typeName == nil {
-            throw DiagnosticsError(diagnostics: [
-                Diagnostic(
-                    node: Syntax(node),
-                    message: ContainerMacroDiagnostic.environmentRequiresNamedType
-                )
-            ])
         }
 
         var declarations: [DeclSyntax] = []
@@ -60,7 +54,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         for property in annotatedProperties {
             let keyDecl = try generateKeyDeclaration(
                 for: property,
-                enclosingTypeName: typeName ?? ""
+                enclosingTypeName: typeName
             )
             declarations.append(keyDecl)
         }
@@ -415,21 +409,16 @@ extension ContainerDeclarationsMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let annotatedProperties = collectAnnotatedProperties(from: declaration)
-        guard !annotatedProperties.isEmpty else {
+        // Match the member-macro's contract — only emit the conformance
+        // extension when @Containers is attached to a named type. The
+        // member-macro's diagnostic is the user-visible error; staying
+        // silent here avoids a confusing follow-on compile error.
+        guard enclosingTypeName(of: declaration) != nil else {
             return []
         }
 
-        // If the member-macro path will fail (env supplied but enclosing decl
-        // can't be named), don't emit the conformance extension either — its
-        // member-macro counterpart's diagnostic is the user-visible error;
-        // emitting a half-finished conformance just adds confusing follow-on
-        // compile errors.
-        let needsNamedType = annotatedProperties.contains { property in
-            if case .dockerfile(_, _, _, .some) = property.kind { return true }
-            return false
-        }
-        if needsNamedType, enclosingTypeName(of: declaration) == nil {
+        let annotatedProperties = collectAnnotatedProperties(from: declaration)
+        guard !annotatedProperties.isEmpty else {
             return []
         }
 
