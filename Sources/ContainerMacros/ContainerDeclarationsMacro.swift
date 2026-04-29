@@ -40,10 +40,10 @@ public struct ContainerDeclarationsMacro: MemberMacro {
     private static func enclosingTypeName(
         of declaration: some DeclGroupSyntax
     ) -> String {
-        if let s = declaration.as(StructDeclSyntax.self) { return s.name.text }
-        if let e = declaration.as(EnumDeclSyntax.self) { return e.name.text }
-        if let c = declaration.as(ClassDeclSyntax.self) { return c.name.text }
-        if let a = declaration.as(ActorDeclSyntax.self) { return a.name.text }
+        if let structDecl = declaration.as(StructDeclSyntax.self) { return structDecl.name.text }
+        if let enumDecl = declaration.as(EnumDeclSyntax.self) { return enumDecl.name.text }
+        if let classDecl = declaration.as(ClassDeclSyntax.self) { return classDecl.name.text }
+        if let actorDecl = declaration.as(ActorDeclSyntax.self) { return actorDecl.name.text }
         return ""
     }
 
@@ -174,24 +174,23 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         return "test-stack"
     }
 
+    struct ParsedDockerfileAttribute {
+        var context: String = "."
+        var dockerfile: String = "Dockerfile"
+        var waitStrategy: String = ".port"
+        var environment: String?
+    }
+
     private static func parseDockerfileAttribute(
         _ attr: AttributeSyntax
-    ) -> (
-        context: String,
-        dockerfile: String,
-        waitStrategy: String,
-        environment: String?
-    ) {
-        var context = "."
-        var dockerfile = "Dockerfile"
-        var waitStrategy = ".port"
-        var environment: String?
+    ) -> ParsedDockerfileAttribute {
+        var parsed = ParsedDockerfileAttribute()
 
         guard
             let arguments = attr.arguments?
                 .as(LabeledExprListSyntax.self)
         else {
-            return (context, dockerfile, waitStrategy, environment)
+            return parsed
         }
 
         for arg in arguments {
@@ -200,25 +199,25 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 let stringLiteral = arg.expression
                     .as(StringLiteralExprSyntax.self)
             {
-                context = stringLiteral.segments.description
+                parsed.context = stringLiteral.segments.description
             } else if label == "dockerfile",
                 let stringLiteral = arg.expression
                     .as(StringLiteralExprSyntax.self)
             {
-                dockerfile = stringLiteral.segments.description
+                parsed.dockerfile = stringLiteral.segments.description
             } else if label == "waitStrategy" {
                 // Pass the expression through verbatim — it's a WaitStrategy enum
                 // value (e.g. `.port`, `.httpGet(path: "/health")`).
-                waitStrategy = arg.expression.description
+                parsed.waitStrategy = arg.expression.description
             } else if label == "environment" {
                 // Pass the expression through verbatim — closure or key path of
                 // type `(Outer) -> [String: String]`. Splatted into a typed
                 // static let so the enclosing struct's name resolves naturally.
-                environment = arg.expression.description
+                parsed.environment = arg.expression.description
             }
         }
 
-        return (context, dockerfile, waitStrategy, environment)
+        return parsed
     }
 
     // MARK: - Code Generation
