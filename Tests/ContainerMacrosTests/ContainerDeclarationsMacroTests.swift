@@ -859,6 +859,51 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
         )
     }
 
+    func testDockerfileContainerEnvironmentRequiresNamedType() throws {
+        // @Containers attached to an extension is unsupported when any
+        // @DockerfileContainer property has `environment:` supplied — the
+        // generated wrapper closure needs to construct an instance of a
+        // named enclosing type. The macro emits a diagnostic; both halves
+        // (member + extension) skip emission so the user sees a single
+        // clear error rather than a cascade of follow-on compile errors.
+        assertMacroExpansion(
+            """
+            @Containers
+            extension SomeOther {
+                @DockerfileContainer(environment: { c in [:] })
+                var taskCluster: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                extension SomeOther {
+                    var taskCluster: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_TaskClusterKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "@DockerfileContainer with `environment:` requires the enclosing "
+                        + "@Containers declaration to be a named type "
+                        + "(struct, enum, class, or actor).",
+                    line: 1,
+                    column: 1
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
     #else
     func testMacrosUnavailable() throws {
         XCTSkip("Macros are only supported when running the tests from the package")

@@ -1,6 +1,24 @@
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
+
+private struct ContainerMacroDiagnostic: DiagnosticMessage {
+    let message: String
+    let diagnosticID: MessageID
+    let severity: DiagnosticSeverity = .error
+
+    static let environmentRequiresNamedType = ContainerMacroDiagnostic(
+        message:
+            "@DockerfileContainer with `environment:` requires the enclosing "
+            + "@Containers declaration to be a named type "
+            + "(struct, enum, class, or actor).",
+        diagnosticID: MessageID(
+            domain: "ContainerMacros",
+            id: "environmentRequiresNamedType"
+        )
+    )
+}
 
 /// Member macro that scans properties for `@Container` / `@LocalStackContainer`
 /// attributes and generates `ContainerKey` enums and a `containerTrait` property.
@@ -17,7 +35,24 @@ public struct ContainerDeclarationsMacro: MemberMacro {
             return []
         }
 
-        let enclosingTypeName = enclosingTypeName(of: declaration)
+        let typeName = enclosingTypeName(of: declaration)
+
+        // The dockerfile-with-environment path emits code referencing the
+        // enclosing struct by name; if `@Containers` is attached to a decl
+        // we can't name (a protocol or extension), bail with a clear
+        // diagnostic instead of generating broken expanded code.
+        let needsNamedType = annotatedProperties.contains { property in
+            if case .dockerfile(_, _, _, .some) = property.kind { return true }
+            return false
+        }
+        if needsNamedType, typeName == nil {
+            throw DiagnosticsError(diagnostics: [
+                Diagnostic(
+                    node: Syntax(node),
+                    message: ContainerMacroDiagnostic.environmentRequiresNamedType
+                )
+            ])
+        }
 
         var declarations: [DeclSyntax] = []
 
@@ -25,7 +60,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         for property in annotatedProperties {
             let keyDecl = try generateKeyDeclaration(
                 for: property,
-                enclosingTypeName: enclosingTypeName
+                enclosingTypeName: typeName ?? ""
             )
             declarations.append(keyDecl)
         }
@@ -39,12 +74,12 @@ public struct ContainerDeclarationsMacro: MemberMacro {
 
     private static func enclosingTypeName(
         of declaration: some DeclGroupSyntax
-    ) -> String {
+    ) -> String? {
         if let structDecl = declaration.as(StructDeclSyntax.self) { return structDecl.name.text }
         if let enumDecl = declaration.as(EnumDeclSyntax.self) { return enumDecl.name.text }
         if let classDecl = declaration.as(ClassDeclSyntax.self) { return classDecl.name.text }
         if let actorDecl = declaration.as(ActorDeclSyntax.self) { return actorDecl.name.text }
-        return ""
+        return nil
     }
 
     // MARK: - Property Collection
@@ -382,6 +417,19 @@ extension ContainerDeclarationsMacro: ExtensionMacro {
     ) throws -> [ExtensionDeclSyntax] {
         let annotatedProperties = collectAnnotatedProperties(from: declaration)
         guard !annotatedProperties.isEmpty else {
+            return []
+        }
+
+        // If the member-macro path will fail (env supplied but enclosing decl
+        // can't be named), don't emit the conformance extension either — its
+        // member-macro counterpart's diagnostic is the user-visible error;
+        // emitting a half-finished conformance just adds confusing follow-on
+        // compile errors.
+        let needsNamedType = annotatedProperties.contains { property in
+            if case .dockerfile(_, _, _, .some) = property.kind { return true }
+            return false
+        }
+        if needsNamedType, enclosingTypeName(of: declaration) == nil {
             return []
         }
 
