@@ -48,6 +48,7 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         let resolvedPorts = DockerPortResolver.resolve(from: inspection.networkSettings)
 
         let gateway = extractGateway(from: inspection.networkSettings)
+        let bridgeIP = extractBridgeIPAddress(from: inspection.networkSettings)
         let host = resolveHost(gateway: gateway)
 
         return RunningContainer(
@@ -56,6 +57,7 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
             image: imageRef,
             host: host,
             bridgeGateway: gateway,
+            bridgeIPAddress: bridgeIP,
             ports: resolvedPorts
         )
     }
@@ -116,6 +118,26 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
                 if let gw = info.gateway, !gw.isEmpty {
                     return gw
                 }
+            }
+        }
+        return nil
+    }
+
+    /// Extracts the container's own bridge-network IP from Docker network settings.
+    ///
+    /// Returns the `IPAddress` from the first network in `Networks` that has a
+    /// non-empty value (typically `bridge` for default-network containers).
+    /// Reachable from sibling containers on the same bridge via the container's
+    /// *internal* port — preferred over the bridge-gateway+host-port path on
+    /// Docker Desktop, where that path is unreliable (host-published ports
+    /// aren't always exposed on the bridge gateway interface).
+    func extractBridgeIPAddress(
+        from networkSettings: InspectContainerResponse.NetworkSettings
+    ) -> String? {
+        guard let networks = networkSettings.networks else { return nil }
+        for (_, info) in networks {
+            if let ip = info.ipAddress, !ip.isEmpty {
+                return ip
             }
         }
         return nil
