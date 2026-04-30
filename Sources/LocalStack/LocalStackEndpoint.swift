@@ -25,18 +25,32 @@ public struct LocalStackEndpoint: Sendable {
         return "http://\(container.host):\(hostPort)"
     }
 
-    /// HTTPS endpoint URL suitable for passing to AWS SDK configuration or CLI
-    /// from the **host** (test runner). Uses the ``localstackHostname`` so TLS
-    /// validates against LocalStack's public certificate and `cdklocal`/etc.
-    /// can construct asset URLs.
+    /// Endpoint URL suitable for passing to AWS SDK configuration or CLI
+    /// from the **host** (test runner). The form depends on whether the
+    /// runner can reach LocalStack via loopback:
     ///
-    /// Not usable from sibling containers — `localstackHostname` resolves to
-    /// 127.0.0.1, which inside a sibling container is the sibling itself, not
-    /// LocalStack. For cross-container env injection use
-    /// ``awsEndpointForSiblings()`` instead.
+    /// - Bare-metal runner (`container.host == "127.0.0.1"`): returns
+    ///   `https://localhost.localstack.cloud:<host_port>` so TLS validates
+    ///   against LocalStack's published cert and `cdklocal`/other
+    ///   hostname-pinning tools can construct asset URLs.
+    /// - Runner inside a container (``DockerContainerRuntime/resolveHost``
+    ///   returned the bridge gateway because `/.dockerenv` exists):
+    ///   `localhost.localstack.cloud` resolves to 127.0.0.1, which inside
+    ///   the runner is the runner's own loopback — not where LocalStack's
+    ///   port is bound. Returns `http://<bridge_gateway>:<host_port>`
+    ///   instead, which is reachable from the runner's network namespace.
+    ///   `cdklocal` and other hostname-pinning tools don't work in this
+    ///   mode — they need a bare-metal runner; the library doesn't paper
+    ///   over that constraint.
+    ///
+    /// Not usable from sibling containers regardless of runner location.
+    /// For cross-container env injection use ``awsEndpointForSiblings()``.
     public func awsEndpoint() throws -> String {
         let hostPort = try container.mappedPort(gatewayPort)
-        return "https://\(Self.localstackHostname):\(hostPort)"
+        if container.host == "127.0.0.1" {
+            return "https://\(Self.localstackHostname):\(hostPort)"
+        }
+        return "http://\(container.host):\(hostPort)"
     }
 
     /// Endpoint URL usable from sibling containers on the same Docker bridge —
