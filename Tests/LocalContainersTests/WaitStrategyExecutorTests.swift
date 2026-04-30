@@ -93,30 +93,39 @@ private func createTCPListener() throws -> (fd: Int32, port: UInt16) {
     return (fd, UInt16(bigEndian: boundAddr.sin_port))
 }
 
-/// Accepts a single connection on the listener, reads the request, writes
-/// a hardcoded HTTP/1.1 response, and closes. Returns when the connection completes.
-private func runOneShotHTTPResponder(
+/// Accepts connections in a loop and writes the same hardcoded HTTP/1.1
+/// response to each, until `listenerFD` is closed (EBADF on accept).
+///
+/// The earlier one-shot variant was racy under CI load: a wait strategy that
+/// retries every 500ms could time out its first attempt before this responder
+/// scheduled past `accept()`; the responder would then accept the orphan
+/// connection and exit, leaving every subsequent retry to connect into a
+/// listen backlog with no acceptor and hang until the overall deadline.
+private func runHTTPResponder(
     listenerFD: Int32,
     status: Int = 200,
     body: String = "ok"
 ) {
-    var clientAddr = sockaddr_in()
-    var clientLen = socklen_t(MemoryLayout<sockaddr_in>.size)
-    let clientFD = withUnsafeMutablePointer(to: &clientAddr) { ptr in
-        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-            accept(listenerFD, sockaddrPtr, &clientLen)
-        }
-    }
-    guard clientFD >= 0 else { return }
-    defer { close(clientFD) }
-
-    var buf = [UInt8](repeating: 0, count: 1024)
-    _ = buf.withUnsafeMutableBufferPointer { read(clientFD, $0.baseAddress, $0.count) }
-
     let response =
         "HTTP/1.1 \(status) X\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
     let bytes = Array(response.utf8)
-    _ = bytes.withUnsafeBufferPointer { write(clientFD, $0.baseAddress, $0.count) }
+
+    while true {
+        var clientAddr = sockaddr_in()
+        var clientLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let clientFD = withUnsafeMutablePointer(to: &clientAddr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                accept(listenerFD, sockaddrPtr, &clientLen)
+            }
+        }
+        guard clientFD >= 0 else { return }
+
+        var buf = [UInt8](repeating: 0, count: 1024)
+        _ = buf.withUnsafeMutableBufferPointer { read(clientFD, $0.baseAddress, $0.count) }
+
+        _ = bytes.withUnsafeBufferPointer { write(clientFD, $0.baseAddress, $0.count) }
+        close(clientFD)
+    }
 }
 
 // MARK: - checkTCPPort Tests
@@ -729,9 +738,7 @@ struct HTTPGetStrategyTests {
         let (listenerFD, port) = try createTCPListener()
         defer { close(listenerFD) }
 
-        let responder = Task.detached {
-            runOneShotHTTPResponder(listenerFD: listenerFD, status: 200)
-        }
+        Task.detached { runHTTPResponder(listenerFD: listenerFD, status: 200) }
 
         let container = RunningContainer(
             id: "test-http-1",
@@ -752,7 +759,6 @@ struct HTTPGetStrategyTests {
             configuration: config,
             runtime: runtime
         )
-        await responder.value
     }
 
     @Test("HTTP GET succeeds with custom expected status")
@@ -760,9 +766,7 @@ struct HTTPGetStrategyTests {
         let (listenerFD, port) = try createTCPListener()
         defer { close(listenerFD) }
 
-        let responder = Task.detached {
-            runOneShotHTTPResponder(listenerFD: listenerFD, status: 204)
-        }
+        Task.detached { runHTTPResponder(listenerFD: listenerFD, status: 204) }
 
         let container = RunningContainer(
             id: "test-http-2",
@@ -783,7 +787,6 @@ struct HTTPGetStrategyTests {
             configuration: config,
             runtime: runtime
         )
-        await responder.value
     }
 
     @Test("HTTP GET times out when nothing is listening")
@@ -859,9 +862,7 @@ struct HTTPGetStrategyTests {
         let (listenerFD, port) = try createTCPListener()
         defer { close(listenerFD) }
 
-        let responder = Task.detached {
-            runOneShotHTTPResponder(listenerFD: listenerFD, status: 200)
-        }
+        Task.detached { runHTTPResponder(listenerFD: listenerFD, status: 200) }
 
         let container = RunningContainer(
             id: "test-http-4",
@@ -882,6 +883,5 @@ struct HTTPGetStrategyTests {
             configuration: config,
             runtime: runtime
         )
-        await responder.value
     }
 }
