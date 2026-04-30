@@ -23,12 +23,28 @@ struct LocalStackEndpointTests {
         #expect(url == "http://127.0.0.1:49152")
     }
 
-    @Test("awsEndpoint returns HTTPS URL with localstackHostname")
+    @Test("awsEndpoint returns HTTPS localstackHostname URL on bare-metal runner")
     func awsEndpoint() throws {
         let ep = LocalStackEndpoint(container: Self.container)
         let aws = try ep.awsEndpoint()
 
         #expect(aws == "https://localhost.localstack.cloud:49152")
+    }
+
+    @Test("awsEndpoint returns HTTP bridge-gateway URL when runner is in a container")
+    func awsEndpointInContainer() throws {
+        let container = RunningContainer(
+            id: "ls-runner-in-container",
+            name: "localstack",
+            image: "localstack/localstack:latest",
+            host: "172.17.0.1",
+            bridgeGateway: "172.17.0.1",
+            bridgeIPAddress: "172.17.0.2",
+            ports: [ResolvedPortMapping(containerPort: 4566, hostPort: 49152)]
+        )
+        let ep = LocalStackEndpoint(container: container)
+
+        #expect(try ep.awsEndpoint() == "http://172.17.0.1:49152")
     }
 
     @Test("endpoint(for:) returns the awsEndpoint for any service")
