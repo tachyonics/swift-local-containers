@@ -33,11 +33,20 @@ public struct RunningContainer: Sendable, Equatable {
     public let host: String
 
     /// The Docker bridge gateway IP for this container's network, when the
-    /// runtime can determine one. Reachable from sibling containers on the
-    /// same bridge — the right host to use in URLs that cross-container env
-    /// injection plumbs into a sibling. `nil` when the runtime doesn't
-    /// expose one (custom networks, non-Docker runtimes, etc.).
+    /// runtime can determine one. Used as the host substitute when the test
+    /// runner itself is inside a container (CI on Docker), since `127.0.0.1`
+    /// would refer to the runner's own loopback. `nil` when the runtime
+    /// doesn't expose one (custom networks, non-Docker runtimes, etc.).
     public let bridgeGateway: String?
+
+    /// The container's own IP on the Docker bridge network, when the runtime
+    /// can determine one. Reachable directly from sibling containers on the
+    /// same bridge — the right host to put in URLs that cross-container env
+    /// injection plumbs into a sibling, since on Docker Desktop the
+    /// `bridgeGateway`+published-port path is unreliable. Pair this with the
+    /// container's *internal* port (not the published host port). `nil` when
+    /// the runtime doesn't expose one.
+    public let bridgeIPAddress: String?
 
     /// Resolved port mappings with actual host ports.
     public let ports: [ResolvedPortMapping]
@@ -48,6 +57,7 @@ public struct RunningContainer: Sendable, Equatable {
         image: String,
         host: String = "127.0.0.1",
         bridgeGateway: String? = nil,
+        bridgeIPAddress: String? = nil,
         ports: [ResolvedPortMapping] = []
     ) {
         self.id = id
@@ -55,6 +65,7 @@ public struct RunningContainer: Sendable, Equatable {
         self.image = image
         self.host = host
         self.bridgeGateway = bridgeGateway
+        self.bridgeIPAddress = bridgeIPAddress
         self.ports = ports
     }
 

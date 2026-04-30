@@ -141,9 +141,11 @@ public struct InspectContainerResponse: Codable, Sendable {
 
         public struct NetworkInfo: Codable, Sendable {
             public var gateway: String?
+            public var ipAddress: String?
 
             private enum CodingKeys: String, CodingKey {
                 case gateway = "Gateway"
+                case ipAddress = "IPAddress"
             }
         }
     }

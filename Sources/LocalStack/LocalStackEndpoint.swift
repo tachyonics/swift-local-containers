@@ -40,22 +40,24 @@ public struct LocalStackEndpoint: Sendable {
     }
 
     /// Endpoint URL usable from sibling containers on the same Docker bridge —
-    /// HTTP + the LocalStack container's bridge gateway IP + the mapped host
-    /// port. The gateway IP is reachable both from the host (it's the host's
-    /// bridge interface) and from sibling containers (it's their default route
-    /// to the host), making this URL the right choice for env injection into a
-    /// ``@DockerfileContainer`` sibling.
+    /// HTTP + the LocalStack container's own bridge-network IP + its
+    /// *internal* gateway port (4566 by default, **not** the published host
+    /// port). On a shared bridge network, container IPs are directly routable
+    /// between siblings, which is the most portable cross-container path —
+    /// the bridge-gateway + host-port alternative is unreliable on Docker
+    /// Desktop, where published ports aren't always reachable via the bridge
+    /// gateway interface.
     ///
-    /// This drops TLS validation in favor of cross-container reachability —
-    /// the trade-off worth making for tests, since LocalStack's cert is just
-    /// a stand-in. Falls back to ``gatewayEndpoint()`` when the runtime
-    /// doesn't expose a bridge gateway (which would be reachable from the
-    /// host but not from siblings — caller should expect failures in that
-    /// case).
+    /// Drops TLS validation in favor of cross-container reachability — fine
+    /// for tests, since LocalStack's cert is just a stand-in.
+    ///
+    /// - Throws: ``ContainerError/portNotFound(containerPort:)`` when the
+    ///   runtime can't surface a bridge IP for this container.
     public func awsEndpointForSiblings() throws -> String {
-        let hostPort = try container.mappedPort(gatewayPort)
-        let host = container.bridgeGateway ?? container.host
-        return "http://\(host):\(hostPort)"
+        guard let bridgeIP = container.bridgeIPAddress else {
+            throw ContainerError.portNotFound(containerPort: gatewayPort)
+        }
+        return "http://\(bridgeIP):\(gatewayPort)"
     }
 
     /// Endpoint URL for a specific AWS service. Same as ``awsEndpoint()``

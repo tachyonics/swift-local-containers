@@ -39,7 +39,7 @@ struct LocalStackEndpointTests {
         #expect(url == "https://localhost.localstack.cloud:49152")
     }
 
-    @Test("awsEndpointForSiblings prefers bridgeGateway when available")
+    @Test("awsEndpointForSiblings uses container IP + container gateway port")
     func awsEndpointForSiblings() throws {
         let container = RunningContainer(
             id: "ls-4",
@@ -47,18 +47,35 @@ struct LocalStackEndpointTests {
             image: "localstack/localstack:latest",
             host: "127.0.0.1",
             bridgeGateway: "172.17.0.1",
+            bridgeIPAddress: "172.17.0.2",
             ports: [ResolvedPortMapping(containerPort: 4566, hostPort: 49152)]
         )
         let ep = LocalStackEndpoint(container: container)
 
-        #expect(try ep.awsEndpointForSiblings() == "http://172.17.0.1:49152")
+        #expect(try ep.awsEndpointForSiblings() == "http://172.17.0.2:4566")
     }
 
-    @Test("awsEndpointForSiblings falls back to host when no bridgeGateway")
-    func awsEndpointForSiblingsNoGateway() throws {
+    @Test("awsEndpointForSiblings honours custom gateway port")
+    func awsEndpointForSiblingsCustomPort() throws {
+        let container = RunningContainer(
+            id: "ls-5",
+            name: "localstack",
+            image: "localstack/localstack:latest",
+            bridgeIPAddress: "172.17.0.4",
+            ports: [ResolvedPortMapping(containerPort: 4510, hostPort: 49200)]
+        )
+        let ep = LocalStackEndpoint(container: container, gatewayPort: 4510)
+
+        #expect(try ep.awsEndpointForSiblings() == "http://172.17.0.4:4510")
+    }
+
+    @Test("awsEndpointForSiblings throws when bridge IP is unavailable")
+    func awsEndpointForSiblingsNoBridgeIP() {
         let ep = LocalStackEndpoint(container: Self.container)
 
-        #expect(try ep.awsEndpointForSiblings() == "http://127.0.0.1:49152")
+        #expect(throws: ContainerError.self) {
+            try ep.awsEndpointForSiblings()
+        }
     }
 
     @Test("Throws when gateway port is not mapped")
