@@ -39,6 +39,28 @@ struct LocalStackEndpointTests {
         #expect(url == "https://localhost.localstack.cloud:49152")
     }
 
+    @Test("awsEndpointForSiblings prefers bridgeGateway when available")
+    func awsEndpointForSiblings() throws {
+        let container = RunningContainer(
+            id: "ls-4",
+            name: "localstack",
+            image: "localstack/localstack:latest",
+            host: "127.0.0.1",
+            bridgeGateway: "172.17.0.1",
+            ports: [ResolvedPortMapping(containerPort: 4566, hostPort: 49152)]
+        )
+        let ep = LocalStackEndpoint(container: container)
+
+        #expect(try ep.awsEndpointForSiblings() == "http://172.17.0.1:49152")
+    }
+
+    @Test("awsEndpointForSiblings falls back to host when no bridgeGateway")
+    func awsEndpointForSiblingsNoGateway() throws {
+        let ep = LocalStackEndpoint(container: Self.container)
+
+        #expect(try ep.awsEndpointForSiblings() == "http://127.0.0.1:49152")
+    }
+
     @Test("Throws when gateway port is not mapped")
     func missingPort() {
         let container = RunningContainer(

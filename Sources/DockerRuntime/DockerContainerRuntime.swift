@@ -55,6 +55,7 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
             name: inspection.name,
             image: imageRef,
             host: host,
+            bridgeGateway: gateway,
             ports: resolvedPorts
         )
     }

@@ -27,8 +27,17 @@ public struct RunningContainer: Sendable, Equatable {
     /// The image the container was started from.
     public let image: String
 
-    /// The host address to connect to (typically `"localhost"` or `"127.0.0.1"`).
+    /// The host address to connect to from the test runner (typically
+    /// `"127.0.0.1"`, or the Docker bridge gateway when the test runner
+    /// itself is inside a container).
     public let host: String
+
+    /// The Docker bridge gateway IP for this container's network, when the
+    /// runtime can determine one. Reachable from sibling containers on the
+    /// same bridge — the right host to use in URLs that cross-container env
+    /// injection plumbs into a sibling. `nil` when the runtime doesn't
+    /// expose one (custom networks, non-Docker runtimes, etc.).
+    public let bridgeGateway: String?
 
     /// Resolved port mappings with actual host ports.
     public let ports: [ResolvedPortMapping]
@@ -38,12 +47,14 @@ public struct RunningContainer: Sendable, Equatable {
         name: String,
         image: String,
         host: String = "127.0.0.1",
+        bridgeGateway: String? = nil,
         ports: [ResolvedPortMapping] = []
     ) {
         self.id = id
         self.name = name
         self.image = image
         self.host = host
+        self.bridgeGateway = bridgeGateway
         self.ports = ports
     }
 

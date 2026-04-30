@@ -25,9 +25,16 @@ package func resolveEnvironment(
         stackOutputs: stackOutputs,
         typedOutputs: typedOutputs
     )
-    let dynamic = ContainerTestContext.$current.withValue(partialContext) {
-        provider()
-    }
+    // Mark the scope so context-aware accessors (e.g.
+    // `StackOutputs.awsEndpoint`) return values appropriate for the sibling
+    // container the env is being injected into, rather than the host-relative
+    // values used in test scope.
+    let dynamic = ContainerExecutionScope.$isInSiblingEnvironmentResolution
+        .withValue(true) {
+            ContainerTestContext.$current.withValue(partialContext) {
+                provider()
+            }
+        }
     return spec.configuration.environment.merging(dynamic) { _, new in new }
 }
 
