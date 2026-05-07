@@ -27,8 +27,8 @@ let package = Package(
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
-        .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-alpha.1"),
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
+        .package(url: "https://github.com/tachyonics/smockable.git", from: "1.0.0-rc.3"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", "602.0.0"..<"604.0.0"),
     ],
     targets: [
         // MARK: - Build Plugins
