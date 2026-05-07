@@ -282,8 +282,6 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                 struct MyTests {
                     var aws
 
-
-
                     static let containerTrait = ContainerTrait(
                         keys: [ErasedContainerKey(_AwsKey.self)],
                         runtime: PlatformRuntime()
