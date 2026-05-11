@@ -25,12 +25,16 @@ public enum LocalContainersLogging {
     /// Log level applied to all swift-local-containers internal loggers.
     public static var level: Logger.Level { resolved }
 
-    private static let resolved: Logger.Level = {
-        guard let raw = LocalContainersSettings.value(for: settingsKey) else {
-            return .info
-        }
+    private static let resolved: Logger.Level = resolve(
+        raw: LocalContainersSettings.value(for: settingsKey)
+    )
+
+    /// Resolve a `Logger.Level` from a raw settings value. Returns `.info`
+    /// when `raw` is nil or unrecognized. Exposed for testing.
+    static func resolve(raw: String?) -> Logger.Level {
+        guard let raw else { return .info }
         return parse(raw) ?? .info
-    }()
+    }
 
     /// Construct a logger with `label` at the configured global level.
     /// Internal call site for default loggers across the library.

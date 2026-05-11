@@ -349,7 +349,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         enclosingTypeName: String
     ) -> DeclSyntax {
         let tag = "local-containers/\(propertyName.lowercased()):test"
-        let logLevelArg = containerLogLevel.map { ",\n                            containerLogLevel: \($0)" } ?? ""
+        let logLevelArg = containerLogLevel.map { ",\n            containerLogLevel: \($0)" } ?? ""
 
         // No env provider: simple ContainerSpec with only configuration.
         guard let environment else {

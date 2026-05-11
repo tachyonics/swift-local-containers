@@ -1,3 +1,4 @@
+import Logging
 import Testing
 
 @testable import LocalContainers
@@ -60,5 +61,57 @@ struct ContainerConfigurationTests {
         let vol = VolumeMount(hostPath: "/config", containerPath: "/etc/config", readOnly: true)
 
         #expect(vol.readOnly == true)
+    }
+
+    @Test("containerLogLevel defaults to nil")
+    func containerLogLevelDefaultsToNil() {
+        let config = ContainerConfiguration(image: "nginx:latest")
+        #expect(config.containerLogLevel == nil)
+    }
+
+    @Test("containerLogLevel is preserved when set on init")
+    func containerLogLevelOnInit() {
+        let config = ContainerConfiguration(
+            image: "nginx:latest",
+            containerLogLevel: .info
+        )
+        #expect(config.containerLogLevel == .info)
+    }
+
+    @Test("with(containerLogLevel:) replaces the level and preserves other fields")
+    func withContainerLogLevelReplaces() {
+        let original = ContainerConfiguration(
+            image: "postgres:16",
+            ports: [PortMapping(containerPort: 5432, hostPort: 15432)],
+            environment: ["POSTGRES_PASSWORD": "test"],
+            volumes: [VolumeMount(hostPath: "/tmp/data", containerPath: "/var/lib/data")],
+            name: "test-postgres",
+            command: ["postgres"],
+            waitStrategy: .httpGet(path: "/ready"),
+            healthCheck: HealthCheckConfig(test: ["CMD", "pg_isready"]),
+            waitTimeout: .seconds(30),
+            containerLogLevel: .debug
+        )
+
+        let updated = original.with(containerLogLevel: .warning)
+
+        #expect(updated.containerLogLevel == .warning)
+        // Every other field is preserved.
+        #expect(updated.image.imageReference == "postgres:16")
+        #expect(updated.ports == original.ports)
+        #expect(updated.environment == original.environment)
+        #expect(updated.volumes == original.volumes)
+        #expect(updated.name == "test-postgres")
+        #expect(updated.command == ["postgres"])
+        #expect(updated.waitTimeout == .seconds(30))
+    }
+
+    @Test("with(containerLogLevel:) can clear the level back to nil")
+    func withContainerLogLevelClears() {
+        let original = ContainerConfiguration(
+            image: "nginx:latest",
+            containerLogLevel: .info
+        )
+        #expect(original.with(containerLogLevel: nil).containerLogLevel == nil)
     }
 }

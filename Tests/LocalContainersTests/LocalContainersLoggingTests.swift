@@ -27,3 +27,23 @@ struct LocalContainersLoggingParseTests {
         #expect(LocalContainersLogging.parse("") == nil)
     }
 }
+
+@Suite("LocalContainersLogging - resolve")
+struct LocalContainersLoggingResolveTests {
+    @Test("nil raw value falls back to .info")
+    func nilFallsBack() {
+        #expect(LocalContainersLogging.resolve(raw: nil) == .info)
+    }
+
+    @Test("Recognized raw value resolves to that level")
+    func recognized() {
+        #expect(LocalContainersLogging.resolve(raw: "debug") == .debug)
+        #expect(LocalContainersLogging.resolve(raw: "WARNING") == .warning)
+    }
+
+    @Test("Unrecognized raw value falls back to .info")
+    func unrecognizedFallsBack() {
+        #expect(LocalContainersLogging.resolve(raw: "verbose") == .info)
+        #expect(LocalContainersLogging.resolve(raw: "") == .info)
+    }
+}

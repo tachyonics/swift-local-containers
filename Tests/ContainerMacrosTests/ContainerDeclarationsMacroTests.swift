@@ -804,6 +804,62 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
         )
     }
 
+    func testDockerfileContainerWithContainerLogLevel() throws {
+        // Verifies the `containerLogLevel:` argument is parsed and emitted
+        // verbatim into the generated `ContainerConfiguration` init.
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(containerLogLevel: .info)
+                var web: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var web: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_WebKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _WebKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/web:test"
+                                    )
+                                ),
+                                waitStrategy: .port,
+                                containerLogLevel: .info
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_WebKey.self)],
+                        runtime: DockerContainerRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations, Sendable {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
     func testDockerfileContainerWithCustomContextAndDockerfile() throws {
         assertMacroExpansion(
             """
