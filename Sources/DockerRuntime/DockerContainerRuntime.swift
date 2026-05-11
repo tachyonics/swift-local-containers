@@ -43,32 +43,8 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         // Start the container
         try await client.startContainer(id: response.id)
 
-        // Inspect to get resolved ports. If the container has already exited
-        // with a non-zero status (e.g. exec format error from an arch
-        // mismatch, or the entrypoint crashing before the Docker `start` API
-        // returns), Docker clears `NetworkSettings.Ports` — surfacing as an
-        // empty ports list to downstream wait strategies, which then fail
-        // with a misleading "no port mapping" error. Detect the failed exit
-        // here and fail fast with the exit code and a tail of container
-        // logs so the real cause is visible at the right layer.
-        //
-        // A clean exit (status 0) is left alone: short-lived containers
-        // (e.g. `echo hello` jobs paired with `.fixedDelay` waits) are a
-        // legitimate use case.
+        // Inspect to get resolved ports
         let inspection = try await client.inspectContainer(id: response.id)
-        if !inspection.state.running, inspection.state.exitCode != 0 {
-            let logTail =
-                (try? await client.containerLogs(id: response.id))
-                .map { WaitStrategyExecutor.tailLines($0, count: 20) } ?? ""
-            let logsFragment =
-                logTail.isEmpty ? "" : "\nLast container log lines:\n\(logTail)"
-            throw ContainerError.startFailed(
-                reason:
-                    "Container exited immediately after start "
-                    + "(exit code: \(inspection.state.exitCode), "
-                    + "status: \(inspection.state.status)).\(logsFragment)"
-            )
-        }
         let resolvedPorts = DockerPortResolver.resolve(from: inspection.networkSettings)
 
         let gateway = extractGateway(from: inspection.networkSettings)
