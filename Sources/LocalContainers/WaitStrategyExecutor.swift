@@ -18,7 +18,7 @@ package enum WaitStrategyExecutor {
         container: RunningContainer,
         configuration: ContainerConfiguration,
         runtime: any ContainerRuntime,
-        logger: Logger = Logger(label: "WaitStrategyExecutor")
+        logger: Logger = LocalContainersLogging.makeLogger(label: "WaitStrategyExecutor")
     ) async throws {
         switch configuration.waitStrategy {
         case .port:

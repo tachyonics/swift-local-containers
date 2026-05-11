@@ -41,7 +41,7 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
             return
         }
 
-        let logger = Logger(label: "ContainerTrait")
+        let logger = LocalContainersLogging.makeLogger(label: "ContainerTrait")
         var started: [ObjectIdentifier: RunningContainer] = [:]
         var stackOutputs: [ObjectIdentifier: [String: String]] = [:]
         var typedOutputs: [ObjectIdentifier: any Sendable] = [:]
@@ -93,14 +93,36 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
                 started[key.id] = container
             }
 
-            // Execute tests with the context available via @TaskLocal
+            // Execute tests with the context available via @TaskLocal,
+            // running structured log-streaming tasks alongside for any
+            // container that opted in via `containerLogLevel`. When the
+            // test execution returns, the streamers are cancelled — they
+            // also exit naturally once their containers are stopped at
+            // teardown.
             let context = ContainerTestContext(
                 containers: started,
                 stackOutputs: stackOutputs,
                 typedOutputs: typedOutputs
             )
-            try await ContainerTestContext.$current.withValue(context) {
-                try await execute()
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for key in keys {
+                    guard let container = started[key.id],
+                        let level = key.spec.configuration.containerLogLevel,
+                        let streaming = runtime as? any LogStreamingRuntime
+                    else {
+                        continue
+                    }
+                    group.addTask {
+                        await streaming.streamLogs(
+                            container: container,
+                            level: level
+                        )
+                    }
+                }
+                try await ContainerTestContext.$current.withValue(context) {
+                    try await execute()
+                }
+                group.cancelAll()
             }
         } catch {
             logger.error("Container lifecycle error", metadata: ["error": "\(error)"])

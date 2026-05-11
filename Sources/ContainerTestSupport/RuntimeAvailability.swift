@@ -1,4 +1,5 @@
 import Foundation
+import LocalContainers
 
 public let dockerAvailable: Bool = {
     // Standard Linux daemon socket (also what CI jobs typically mount

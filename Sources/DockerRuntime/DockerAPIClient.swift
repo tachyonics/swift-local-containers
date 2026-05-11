@@ -16,11 +16,11 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     init(
         socketPath: String = "/var/run/docker.sock",
-        logger: Logger = Logger(label: "DockerAPIClient"),
+        logger: Logger? = nil,
         executor: Executor
     ) {
         self.socketPath = socketPath
-        self.logger = logger
+        self.logger = logger ?? LocalContainersLogging.makeLogger(label: "DockerAPIClient")
         self.executor = executor
     }
 
@@ -113,7 +113,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Inspect a running container.
     package func inspectContainer(id: String) async throws -> InspectContainerResponse {
-        logger.info("Inspecting container", metadata: ["id": "\(id)"])
+        logger.debug("Inspecting container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)/json")
         var request = HTTPClientRequest(url: url)
@@ -143,7 +143,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
     /// an 8-byte header (`[stream_type, 0, 0, 0, size_be32]`) followed by payload bytes.
     /// When TTY is enabled, the response is plain text with no framing.
     package func containerLogs(id: String) async throws -> String {
-        logger.info("Fetching container logs", metadata: ["id": "\(id)"])
+        logger.debug("Fetching container logs", metadata: ["id": "\(id)"])
 
         let url = try apiURL(
             "/containers/\(id)/logs",
@@ -170,7 +170,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
         let responseBody = try await executeRequest(request)
         let response = try JSONDecoder().decode(CreateExecResponse.self, from: responseBody)
-        logger.info(
+        logger.debug(
             "Created exec",
             metadata: [
                 "execId": "\(response.id)",
@@ -183,7 +183,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Start an exec instance and wait for it to complete.
     package func startExec(id: String) async throws {
-        logger.info("Starting exec", metadata: ["execId": "\(id)"])
+        logger.debug("Starting exec", metadata: ["execId": "\(id)"])
 
         let url = try apiURL("/exec/\(id)/start")
         var request = HTTPClientRequest(url: url)
@@ -199,7 +199,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Inspect an exec instance to read the exit code.
     package func inspectExec(id: String) async throws -> InspectExecResponse {
-        logger.info("Inspecting exec", metadata: ["execId": "\(id)"])
+        logger.debug("Inspecting exec", metadata: ["execId": "\(id)"])
 
         let url = try apiURL("/exec/\(id)/json")
         var request = HTTPClientRequest(url: url)
@@ -377,10 +377,10 @@ extension GenericDockerAPIClient where Executor == HTTPClient {
     /// - Parameter socketPath: Path to the Docker socket. Defaults to `/var/run/docker.sock`.
     package init(
         socketPath: String = "/var/run/docker.sock",
-        logger: Logger = Logger(label: "DockerAPIClient")
+        logger: Logger? = nil
     ) {
         self.socketPath = socketPath
-        self.logger = logger
+        self.logger = logger ?? LocalContainersLogging.makeLogger(label: "DockerAPIClient")
         self.executor = .shared
     }
 }

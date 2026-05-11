@@ -1,7 +1,11 @@
 import Foundation
 
-/// Loads project-local test configuration from `.local-containers/env`
+/// Loads project-local **secret** configuration from `.local-containers/env`
 /// in the current working directory.
+///
+/// This file is expected to be gitignored — it holds tokens and overrides
+/// that should not be committed (e.g. `LOCALSTACK_AUTH_TOKEN`). For shared,
+/// committed configuration (log level, etc.), see ``LocalContainersSettings``.
 ///
 /// The file uses a simple `KEY=VALUE` syntax (one pair per line). Blank
 /// lines and lines beginning with `#` are ignored. Surrounding single or
@@ -16,8 +20,8 @@ import Foundation
 /// Intended layout:
 /// ```
 /// .local-containers/
-///     env                  # gitignored — secrets and overrides
-///     config.toml          # (future) committed shared config
+///     env                  # gitignored — secrets and local overrides
+///     config               # committed — shared library settings
 /// ```
 public enum LocalContainersConfig {
     /// Relative path to the env file from the current working directory.
@@ -35,12 +39,16 @@ public enum LocalContainersConfig {
     private static let loaded: [String: String] = {
         let cwd = FileManager.default.currentDirectoryPath
         let url = URL(fileURLWithPath: cwd).appendingPathComponent(relativePath)
-        return load(from: url)
+        return KeyValueFileLoader.load(from: url)
     }()
+}
 
+/// Internal helper shared by ``LocalContainersConfig`` and
+/// ``LocalContainersSettings``. Reads a `KEY=VALUE` config file from disk
+/// and parses it into a dictionary.
+enum KeyValueFileLoader {
     /// Reads and parses a config file at the given URL. Returns an empty
-    /// dictionary if the file does not exist or cannot be read. Exposed
-    /// for testing.
+    /// dictionary if the file does not exist or cannot be read.
     static func load(from url: URL) -> [String: String] {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else {
             return [:]
@@ -52,7 +60,8 @@ public enum LocalContainersConfig {
         return result
     }
 
-    /// Parses `KEY=VALUE` lines. Exposed for testing.
+    /// Parses `KEY=VALUE` lines. Blank lines and `#` comments are skipped;
+    /// surrounding single/double quotes are stripped from values.
     static func parse(_ contents: String) -> [(key: String, value: String)] {
         var result: [(String, String)] = []
         for rawLine in contents.split(

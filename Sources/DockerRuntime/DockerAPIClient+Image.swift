@@ -8,7 +8,7 @@ extension GenericDockerAPIClient {
     ///
     /// Used to discover declared `EXPOSE` ports for service-container port auto-mapping.
     package func inspectImage(reference: String) async throws -> ImageInspection {
-        logger.info("Inspecting image", metadata: ["reference": "\(reference)"])
+        logger.debug("Inspecting image", metadata: ["reference": "\(reference)"])
 
         let url = try apiURL("/images/\(reference)/json")
         var request = HTTPClientRequest(url: url)

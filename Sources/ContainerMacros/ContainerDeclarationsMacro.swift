@@ -72,7 +72,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         // no-arg init suppresses auto-synthesis; the post-accessor-expansion
         // properties are computed, so init() needs no body.
         if annotatedProperties.contains(where: { property in
-            if case .dockerfile(_, _, _, .some) = property.kind { return true }
+            if case .dockerfile(_, _, _, _, .some) = property.kind { return true }
             return false
         }) {
             declarations.append("init() {}")
@@ -148,6 +148,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                 context: parsed.context,
                                 dockerfile: parsed.dockerfile,
                                 waitStrategy: parsed.waitStrategy,
+                                containerLogLevel: parsed.containerLogLevel,
                                 environment: parsed.environment
                             )
                         )
@@ -222,6 +223,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         var context: String = "."
         var dockerfile: String = "Dockerfile"
         var waitStrategy: String = ".port"
+        var containerLogLevel: String?
         var environment: String?
     }
 
@@ -253,6 +255,10 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 // Pass the expression through verbatim — it's a WaitStrategy enum
                 // value (e.g. `.port`, `.httpGet(path: "/health")`).
                 parsed.waitStrategy = arg.expression.description
+            } else if label == "containerLogLevel" {
+                // Pass through verbatim — a `Logger.Level?` expression like
+                // `.info` or `nil`. The generated init handles the optional.
+                parsed.containerLogLevel = arg.expression.description
             } else if label == "environment" {
                 // Pass the expression through verbatim — closure or key path of
                 // type `(Outer) -> [String: String]`. Splatted into a typed
@@ -312,13 +318,20 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 }
                 """
 
-        case .dockerfile(let context, let dockerfile, let waitStrategy, let environment):
+        case .dockerfile(
+            let context,
+            let dockerfile,
+            let waitStrategy,
+            let containerLogLevel,
+            let environment
+        ):
             return generateDockerfileKey(
                 keyName: keyName,
                 propertyName: property.name,
                 context: context,
                 dockerfile: dockerfile,
                 waitStrategy: waitStrategy,
+                containerLogLevel: containerLogLevel,
                 environment: environment,
                 enclosingTypeName: enclosingTypeName
             )
@@ -331,10 +344,12 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         context: String,
         dockerfile: String,
         waitStrategy: String,
+        containerLogLevel: String?,
         environment: String?,
         enclosingTypeName: String
     ) -> DeclSyntax {
         let tag = "local-containers/\(propertyName.lowercased()):test"
+        let logLevelArg = containerLogLevel.map { ",\n                            containerLogLevel: \($0)" } ?? ""
 
         // No env provider: simple ContainerSpec with only configuration.
         guard let environment else {
@@ -350,7 +365,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                     tag: \(literal: tag)
                                 )
                             ),
-                            waitStrategy: \(raw: waitStrategy)
+                            waitStrategy: \(raw: waitStrategy)\(raw: logLevelArg)
                         )
                     )
                 }
@@ -378,7 +393,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                 tag: \(literal: tag)
                             )
                         ),
-                        waitStrategy: \(raw: waitStrategy)
+                        waitStrategy: \(raw: waitStrategy)\(raw: logLevelArg)
                     ),
                     environmentProvider: { _envProvider(\(raw: enclosingTypeName)()) }
                 )
@@ -481,6 +496,7 @@ struct AnnotatedProperty {
             context: String,
             dockerfile: String,
             waitStrategy: String,
+            containerLogLevel: String?,
             environment: String?
         )
     }
