@@ -36,27 +36,44 @@ struct DockerLifecycleTests {
         }
     }
 
-    @Test("startContainer fails fast with logs when the container exits immediately")
-    func startContainerExitsImmediately() async throws {
+    @Test(
+        "httpGet wait surfaces containerExitedDuringWait, not portNotFound, when the container crashes on start"
+    )
+    func httpGetWaitOnImmediateExitYieldsExitError() async throws {
         let runtime = DockerContainerRuntime()
         try await runtime.pullImage("alpine:latest")
 
+        // Container crashes before its port mappings can be observed. The
+        // empty `NetworkSettings.Ports` left behind would previously surface
+        // as a misleading `portNotFound(0)` from the wait strategy.
         let config = ContainerConfiguration(
             image: "alpine:latest",
             ports: [PortMapping(containerPort: 8080)],
-            command: ["sh", "-c", "echo 'goodbye cruel world' >&2; exit 7"]
+            command: ["sh", "-c", "exit 7"],
+            waitStrategy: .httpGet(path: "/health"),
+            waitTimeout: .seconds(5)
         )
+        let container = try await runtime.startContainer(from: config)
+
+        defer {
+            Task {
+                try? await runtime.removeContainer(container)
+            }
+        }
 
         await #expect {
-            _ = try await runtime.startContainer(from: config)
+            try await WaitStrategyExecutor.waitUntilReady(
+                container: container,
+                configuration: config,
+                runtime: runtime
+            )
         } throws: { error in
             guard let containerError = error as? ContainerError,
-                case .startFailed(let reason) = containerError
+                case .containerExitedDuringWait(let exitCode) = containerError
             else {
                 return false
             }
-            return reason.contains("exit code: 7")
-                && reason.contains("goodbye cruel world")
+            return exitCode == 7
         }
     }
 }

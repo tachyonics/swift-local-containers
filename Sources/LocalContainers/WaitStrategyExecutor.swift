@@ -74,7 +74,12 @@ package enum WaitStrategyExecutor {
         logger: Logger
     ) async throws {
         guard let firstPort = container.ports.first else {
-            throw ContainerError.portNotFound(containerPort: 0)
+            try await throwForMissingPorts(
+                strategy: "port",
+                container: container,
+                runtime: runtime,
+                logger: logger
+            )
         }
 
         try await pollWithTimeout(
@@ -166,7 +171,12 @@ package enum WaitStrategyExecutor {
         logger: Logger
     ) async throws {
         guard let firstPort = container.ports.first else {
-            throw ContainerError.portNotFound(containerPort: 0)
+            try await throwForMissingPorts(
+                strategy: "httpGet",
+                container: container,
+                runtime: runtime,
+                logger: logger
+            )
         }
 
         let normalizedPath = path.hasPrefix("/") ? path : "/\(path)"
@@ -272,6 +282,40 @@ package enum WaitStrategyExecutor {
         }
     }
 
+    // MARK: - Missing-Ports Diagnosis
+
+    /// Distinguish "container is up but ports weren't declared" from "container
+    /// has already exited and Docker cleared its port mappings", and throw the
+    /// appropriate error.
+    ///
+    /// `waitForPort` and `waitForHTTPGet` need at least one mapped port to do
+    /// their work. An empty `container.ports` can mean either case. Without
+    /// this check, both paths would surface as the misleading
+    /// `portNotFound(0)`, sending users hunting for a port-config bug when
+    /// the actual cause is a crashed entrypoint.
+    private static func throwForMissingPorts(
+        strategy: String,
+        container: RunningContainer,
+        runtime: any ContainerRuntime,
+        logger: Logger
+    ) async throws -> Never {
+        if let inspection = try? await runtime.inspect(container: container),
+            !inspection.isRunning
+        {
+            await emitLogTail(
+                preamble:
+                    "Wait strategy '\(strategy)' aborted: container exited before ports could be observed",
+                container: container,
+                runtime: runtime,
+                logger: logger
+            )
+            throw ContainerError.containerExitedDuringWait(
+                exitCode: inspection.exitCode
+            )
+        }
+        throw ContainerError.portNotFound(containerPort: 0)
+    }
+
     // MARK: - Log Tail
 
     private static let maxLogTailLines = 20
@@ -301,7 +345,7 @@ package enum WaitStrategyExecutor {
         }
     }
 
-    package static func tailLines(_ string: String, count: Int) -> String {
+    static func tailLines(_ string: String, count: Int) -> String {
         let allLines = string.split(
             separator: "\n",
             omittingEmptySubsequences: false
