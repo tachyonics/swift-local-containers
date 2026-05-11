@@ -53,7 +53,8 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         // visible at the right layer.
         let inspection = try await client.inspectContainer(id: response.id)
         if !inspection.state.running {
-            let logTail = (try? await client.containerLogs(id: response.id))
+            let logTail =
+                (try? await client.containerLogs(id: response.id))
                 .map { WaitStrategyExecutor.tailLines($0, count: 20) } ?? ""
             let logsFragment =
                 logTail.isEmpty ? "" : "\nLast container log lines:\n\(logTail)"
