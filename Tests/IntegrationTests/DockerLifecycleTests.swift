@@ -35,4 +35,28 @@ struct DockerLifecycleTests {
             _ = try await client.inspectContainer(id: container.id)
         }
     }
+
+    @Test("startContainer fails fast with logs when the container exits immediately")
+    func startContainerExitsImmediately() async throws {
+        let runtime = DockerContainerRuntime()
+        try await runtime.pullImage("alpine:latest")
+
+        let config = ContainerConfiguration(
+            image: "alpine:latest",
+            ports: [PortMapping(containerPort: 8080)],
+            command: ["sh", "-c", "echo 'goodbye cruel world' >&2; exit 7"]
+        )
+
+        await #expect {
+            _ = try await runtime.startContainer(from: config)
+        } throws: { error in
+            guard let containerError = error as? ContainerError,
+                case .startFailed(let reason) = containerError
+            else {
+                return false
+            }
+            return reason.contains("exit code: 7")
+                && reason.contains("goodbye cruel world")
+        }
+    }
 }

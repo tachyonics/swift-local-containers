@@ -52,6 +52,11 @@ public enum ContainerError: Error, Sendable, CustomStringConvertible {
             }
             return "Container exited unexpectedly"
         case .portNotFound(let containerPort):
+            if containerPort == 0 {
+                return
+                    "No port mappings on the running container. "
+                    + "Declare a port via PortMapping in the configuration, or add EXPOSE to the Dockerfile."
+            }
             return "No port mapping found for container port \(containerPort)"
         case .runtimeError(let message):
             return "Container runtime error: \(message)"

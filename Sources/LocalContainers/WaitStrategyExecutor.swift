@@ -301,7 +301,7 @@ package enum WaitStrategyExecutor {
         }
     }
 
-    static func tailLines(_ string: String, count: Int) -> String {
+    package static func tailLines(_ string: String, count: Int) -> String {
         let allLines = string.split(
             separator: "\n",
             omittingEmptySubsequences: false
