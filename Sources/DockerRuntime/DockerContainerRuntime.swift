@@ -50,11 +50,12 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, Lo
         from configuration: ContainerConfiguration
     ) async throws -> RunningContainer {
         let imageRef = configuration.image.imageReference
-        logger.info("Starting container", metadata: ["image": "\(imageRef)"])
 
         // Build the Docker create request from the configuration
         let request = buildCreateRequest(from: configuration)
         let response = try await client.createContainer(request, name: configuration.name)
+
+        logger.info("Starting container", metadata: ["image": "\(imageRef)", "id": "\(response.id)"])
 
         // Start the container
         try await client.startContainer(id: response.id)
@@ -79,12 +80,12 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, Lo
     }
 
     public func stopContainer(_ container: RunningContainer) async throws {
-        logger.info("Stopping container", metadata: ["image": "\(container.image)"])
+        logger.info("Stopping container", metadata: ["image": "\(container.image)", "id": "\(container.id)"])
         try await client.stopContainer(id: container.id)
     }
 
     public func removeContainer(_ container: RunningContainer) async throws {
-        logger.debug("Removing container", metadata: ["image": "\(container.image)"])
+        logger.debug("Removing container", metadata: ["image": "\(container.image)", "id": "\(container.id)"])
         try await client.removeContainer(id: container.id, force: true)
     }
 
