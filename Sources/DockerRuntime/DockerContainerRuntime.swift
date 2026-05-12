@@ -79,10 +79,12 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, Lo
     }
 
     public func stopContainer(_ container: RunningContainer) async throws {
+        logger.info("Stopping container", metadata: ["image": "\(container.image)"])
         try await client.stopContainer(id: container.id)
     }
 
     public func removeContainer(_ container: RunningContainer) async throws {
+        logger.debug("Removing container", metadata: ["image": "\(container.image)"])
         try await client.removeContainer(id: container.id, force: true)
     }
 
