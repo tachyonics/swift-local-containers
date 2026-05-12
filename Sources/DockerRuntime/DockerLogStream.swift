@@ -23,6 +23,28 @@ package func streamContainerLogs(
     socketPath: String,
     logger: Logger
 ) async {
+    await streamContainerLogs(
+        id: id,
+        containerName: containerName,
+        level: level,
+        socketPath: socketPath,
+        executor: HTTPClient.shared,
+        logger: logger
+    )
+}
+
+/// Generic-over-executor variant for testing. The package surface exposes
+/// only the `HTTPClient.shared` overload above; tests inject a mock executor
+/// to exercise the error paths (HTTP execute throws, non-2xx response,
+/// trailing-line flush) without standing up a real Docker daemon.
+package func streamContainerLogs<E: HTTPExecutor>(
+    id: String,
+    containerName: String,
+    level: Logger.Level,
+    socketPath: String,
+    executor: E,
+    logger: Logger
+) async {
     let uri = "/v1.47/containers/\(id)/logs?follow=1&stdout=1&stderr=1"
     guard let url = URL(httpURLWithSocketPath: socketPath, uri: uri)?.absoluteString
     else {
@@ -37,7 +59,7 @@ package func streamContainerLogs(
     request.headers.add(name: "Host", value: "localhost")
 
     do {
-        let response = try await HTTPClient.shared.execute(
+        let response = try await executor.execute(
             request,
             timeout: .hours(24),
             logger: nil
