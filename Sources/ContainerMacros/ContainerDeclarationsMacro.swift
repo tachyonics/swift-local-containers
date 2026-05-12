@@ -349,7 +349,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         enclosingTypeName: String
     ) -> DeclSyntax {
         let tag = "local-containers/\(propertyName.lowercased()):test"
-        let logLevelArg = containerLogLevel.map { ",\n            containerLogLevel: \($0)" } ?? ""
+        let logLevelExpr = containerLogLevel ?? "nil"
 
         // No env provider: simple ContainerSpec with only configuration.
         guard let environment else {
@@ -365,7 +365,8 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                     tag: \(literal: tag)
                                 )
                             ),
-                            waitStrategy: \(raw: waitStrategy)\(raw: logLevelArg)
+                            waitStrategy: \(raw: waitStrategy),
+                            containerLogLevel: \(raw: logLevelExpr)
                         )
                     )
                 }
@@ -393,7 +394,8 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                 tag: \(literal: tag)
                             )
                         ),
-                        waitStrategy: \(raw: waitStrategy)\(raw: logLevelArg)
+                        waitStrategy: \(raw: waitStrategy),
+                        containerLogLevel: \(raw: logLevelExpr)
                     ),
                     environmentProvider: { _envProvider(\(raw: enclosingTypeName)()) }
                 )

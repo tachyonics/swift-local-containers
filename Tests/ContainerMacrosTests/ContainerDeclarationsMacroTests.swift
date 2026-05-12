@@ -733,7 +733,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -786,7 +787,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/web:test"
                                     )
                                 ),
-                                waitStrategy: .httpGet(path: "/health")
+                                waitStrategy: .httpGet(path: "/health"),
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -895,7 +897,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/api:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -958,7 +961,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             ),
                             environmentProvider: {
                                 _envProvider(MyTests())
@@ -1028,7 +1032,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             ),
                             environmentProvider: {
                                 _envProvider(MyTests())
