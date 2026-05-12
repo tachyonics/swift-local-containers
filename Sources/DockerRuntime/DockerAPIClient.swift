@@ -78,7 +78,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
         _ request: CreateContainerRequest,
         name: String? = nil
     ) async throws -> CreateContainerResponse {
-        logger.info("Creating container", metadata: ["image": "\(request.image)"])
+        logger.debug("Creating container", metadata: ["image": "\(request.image)"])
 
         var query: [(String, String)] = []
         if let name {
@@ -100,7 +100,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Start a created container.
     package func startContainer(id: String) async throws {
-        logger.info("Starting container", metadata: ["id": "\(id)"])
+        logger.debug("Starting container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)/start")
         var request = HTTPClientRequest(url: url)
@@ -126,7 +126,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Stop a running container.
     package func stopContainer(id: String, timeout: Int = 10) async throws {
-        logger.info("Stopping container", metadata: ["id": "\(id)"])
+        logger.debug("Stopping container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)/stop", query: [("t", String(timeout))])
         var request = HTTPClientRequest(url: url)
@@ -212,7 +212,7 @@ package struct GenericDockerAPIClient<Executor: HTTPExecutor>: Sendable {
 
     /// Remove a container.
     package func removeContainer(id: String, force: Bool = false) async throws {
-        logger.info("Removing container", metadata: ["id": "\(id)"])
+        logger.debug("Removing container", metadata: ["id": "\(id)"])
 
         let url = try apiURL("/containers/\(id)", query: [("force", String(force))])
         var request = HTTPClientRequest(url: url)
