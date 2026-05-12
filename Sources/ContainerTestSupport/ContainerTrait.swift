@@ -41,66 +41,52 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
             return
         }
 
-        let logger = Logger(label: "ContainerTrait")
+        let logger = LocalContainersLogging.makeLogger(label: "ContainerTrait")
         var started: [ObjectIdentifier: RunningContainer] = [:]
         var stackOutputs: [ObjectIdentifier: [String: String]] = [:]
         var typedOutputs: [ObjectIdentifier: any Sendable] = [:]
 
         do {
-            // Start all containers
             for key in keys {
-                let spec = key.spec
-                logger.info(
-                    "Starting container",
-                    metadata: ["image": "\(spec.configuration.image.imageReference)"]
-                )
-                let mergedEnv = resolveEnvironment(
-                    for: spec,
-                    started: started,
-                    stackOutputs: stackOutputs,
-                    typedOutputs: typedOutputs
-                )
-                let preparedConfig = try await prepareImage(
-                    for: spec.configuration.with(environment: mergedEnv),
-                    using: runtime,
+                try await startAndConfigure(
+                    key: key,
+                    started: &started,
+                    stackOutputs: &stackOutputs,
+                    typedOutputs: &typedOutputs,
                     logger: logger
                 )
-                let container = try await runtime.startContainer(from: preparedConfig)
-
-                // Wait for container readiness
-                try await WaitStrategyExecutor.waitUntilReady(
-                    container: container,
-                    configuration: spec.configuration,
-                    runtime: runtime
-                )
-
-                // Run setup steps and collect outputs
-                for setup in spec.setups {
-                    try await setup.setUp(container: container)
-
-                    if let outputSetup = setup as? OutputProducingSetup {
-                        let rawOutputs = try await outputSetup.fetchOutputs(
-                            from: container
-                        )
-                        stackOutputs[key.id] = rawOutputs
-
-                        if let constructor = key.outputConstructor {
-                            typedOutputs[key.id] = try constructor(rawOutputs)
-                        }
-                    }
-                }
-
-                started[key.id] = container
             }
 
-            // Execute tests with the context available via @TaskLocal
+            // Execute tests with the context available via @TaskLocal,
+            // running structured log-streaming tasks alongside for any
+            // container that opted in via `containerLogLevel`. When the
+            // test execution returns, the streamers are cancelled — they
+            // also exit naturally once their containers are stopped at
+            // teardown.
             let context = ContainerTestContext(
                 containers: started,
                 stackOutputs: stackOutputs,
                 typedOutputs: typedOutputs
             )
-            try await ContainerTestContext.$current.withValue(context) {
-                try await execute()
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for key in keys {
+                    guard let container = started[key.id],
+                        let level = key.spec.configuration.containerLogLevel,
+                        let streaming = runtime as? any LogStreamingRuntime
+                    else {
+                        continue
+                    }
+                    group.addTask {
+                        await streaming.streamLogs(
+                            container: container,
+                            level: level
+                        )
+                    }
+                }
+                try await ContainerTestContext.$current.withValue(context) {
+                    try await execute()
+                }
+                group.cancelAll()
             }
         } catch {
             logger.error("Container lifecycle error", metadata: ["error": "\(error)"])
@@ -108,6 +94,57 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
         }
 
         await teardown(started: started, logger: logger)
+    }
+
+    /// Brings a single container up: resolves dynamic environment from already-
+    /// started siblings, prepares the image (build or pull), starts the
+    /// container, waits for it to be ready, and runs any setup steps —
+    /// collecting their outputs into the typed/raw output maps for downstream
+    /// containers' env resolution.
+    private func startAndConfigure(
+        key: ErasedContainerKey,
+        started: inout [ObjectIdentifier: RunningContainer],
+        stackOutputs: inout [ObjectIdentifier: [String: String]],
+        typedOutputs: inout [ObjectIdentifier: any Sendable],
+        logger: Logger
+    ) async throws {
+        let spec = key.spec
+        logger.info(
+            "Starting container",
+            metadata: ["image": "\(spec.configuration.image.imageReference)"]
+        )
+        let mergedEnv = resolveEnvironment(
+            for: spec,
+            started: started,
+            stackOutputs: stackOutputs,
+            typedOutputs: typedOutputs
+        )
+        let preparedConfig = try await prepareImage(
+            for: spec.configuration.with(environment: mergedEnv),
+            using: runtime,
+            logger: logger
+        )
+        let container = try await runtime.startContainer(from: preparedConfig)
+
+        try await WaitStrategyExecutor.waitUntilReady(
+            container: container,
+            configuration: spec.configuration,
+            runtime: runtime
+        )
+
+        for setup in spec.setups {
+            try await setup.setUp(container: container)
+
+            if let outputSetup = setup as? OutputProducingSetup {
+                let rawOutputs = try await outputSetup.fetchOutputs(from: container)
+                stackOutputs[key.id] = rawOutputs
+                if let constructor = key.outputConstructor {
+                    typedOutputs[key.id] = try constructor(rawOutputs)
+                }
+            }
+        }
+
+        started[key.id] = container
     }
 
     private func teardown(

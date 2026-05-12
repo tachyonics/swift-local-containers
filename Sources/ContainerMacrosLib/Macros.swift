@@ -2,6 +2,7 @@
 @_exported import DockerRuntime
 @_exported import LocalContainers
 @_exported import LocalStack
+@_exported import Logging
 @_exported import PlatformRuntime
 
 /// Scans properties for `@Container` / `@LocalStackContainer` attributes and
@@ -96,6 +97,7 @@ public macro DockerfileContainer(
     context: String = ".",
     dockerfile: String = "Dockerfile",
     waitStrategy: WaitStrategy = .port,
+    containerLogLevel: Logger.Level? = nil,
     environment: Any? = nil
 ) =
     #externalMacro(

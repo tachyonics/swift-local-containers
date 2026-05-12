@@ -733,7 +733,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -786,7 +787,64 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/web:test"
                                     )
                                 ),
-                                waitStrategy: .httpGet(path: "/health")
+                                waitStrategy: .httpGet(path: "/health"),
+                                containerLogLevel: nil
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_WebKey.self)],
+                        runtime: DockerContainerRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations, Sendable {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDockerfileContainerWithContainerLogLevel() throws {
+        // Verifies the `containerLogLevel:` argument is parsed and emitted
+        // verbatim into the generated `ContainerConfiguration` init.
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(containerLogLevel: .info)
+                var web: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var web: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_WebKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _WebKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/web:test"
+                                    )
+                                ),
+                                waitStrategy: .port,
+                                containerLogLevel: .info
                             )
                         )
                     }
@@ -839,7 +897,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/api:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -902,7 +961,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             ),
                             environmentProvider: {
                                 _envProvider(MyTests())
@@ -972,7 +1032,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             ),
                             environmentProvider: {
                                 _envProvider(MyTests())

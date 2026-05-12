@@ -1,13 +1,13 @@
 import Foundation
 import Testing
 
-@testable import ContainerTestSupport
+@testable import LocalContainers
 
-@Suite("LocalContainersConfig - parse")
-struct LocalContainersConfigParseTests {
+@Suite("KeyValueFileLoader - parse")
+struct KeyValueFileLoaderParseTests {
     @Test("Parses simple KEY=VALUE lines")
     func simplePairs() {
-        let result = LocalContainersConfig.parse("FOO=bar\nBAZ=qux")
+        let result = KeyValueFileLoader.parse("FOO=bar\nBAZ=qux")
         #expect(result.count == 2)
         #expect(result[0].key == "FOO")
         #expect(result[0].value == "bar")
@@ -24,13 +24,13 @@ struct LocalContainersConfigParseTests {
               # indented comment
             BAZ=qux
             """
-        let result = LocalContainersConfig.parse(contents)
+        let result = KeyValueFileLoader.parse(contents)
         #expect(result.map(\.key) == ["FOO", "BAZ"])
     }
 
     @Test("Strips surrounding double and single quotes")
     func stripsQuotes() {
-        let result = LocalContainersConfig.parse(#"A="hello"\#nB='world'\#nC=raw"#)
+        let result = KeyValueFileLoader.parse(#"A="hello"\#nB='world'\#nC=raw"#)
         #expect(result[0].value == "hello")
         #expect(result[1].value == "world")
         #expect(result[2].value == "raw")
@@ -38,7 +38,7 @@ struct LocalContainersConfigParseTests {
 
     @Test("Trims whitespace around key and value")
     func trimsWhitespace() {
-        let result = LocalContainersConfig.parse("  FOO  =  bar  ")
+        let result = KeyValueFileLoader.parse("  FOO  =  bar  ")
         #expect(result.count == 1)
         #expect(result[0].key == "FOO")
         #expect(result[0].value == "bar")
@@ -46,32 +46,32 @@ struct LocalContainersConfigParseTests {
 
     @Test("Ignores lines without equals sign")
     func ignoresMalformed() {
-        let result = LocalContainersConfig.parse("notAKeyValueLine\nFOO=bar")
+        let result = KeyValueFileLoader.parse("notAKeyValueLine\nFOO=bar")
         #expect(result.count == 1)
         #expect(result[0].key == "FOO")
     }
 
     @Test("Ignores lines with empty key")
     func ignoresEmptyKey() {
-        let result = LocalContainersConfig.parse("=noKey\nFOO=bar")
+        let result = KeyValueFileLoader.parse("=noKey\nFOO=bar")
         #expect(result.count == 1)
         #expect(result[0].key == "FOO")
     }
 
     @Test("Preserves equals signs inside values")
     func equalsInValue() {
-        let result = LocalContainersConfig.parse("URL=https://example.com/?q=1&r=2")
+        let result = KeyValueFileLoader.parse("URL=https://example.com/?q=1&r=2")
         #expect(result.count == 1)
         #expect(result[0].value == "https://example.com/?q=1&r=2")
     }
 }
 
-@Suite("LocalContainersConfig - load")
-struct LocalContainersConfigLoadTests {
+@Suite("KeyValueFileLoader - load")
+struct KeyValueFileLoaderLoadTests {
     @Test("Returns empty dict when file does not exist")
     func missingFile() {
         let url = URL(fileURLWithPath: "/nonexistent/\(UUID().uuidString)/env")
-        let result = LocalContainersConfig.load(from: url)
+        let result = KeyValueFileLoader.load(from: url)
         #expect(result.isEmpty)
     }
 
@@ -92,7 +92,7 @@ struct LocalContainersConfigLoadTests {
         TOKEN="secret"
         """.write(to: fileURL, atomically: true, encoding: .utf8)
 
-        let result = LocalContainersConfig.load(from: fileURL)
+        let result = KeyValueFileLoader.load(from: fileURL)
         #expect(result["FOO"] == "bar")
         #expect(result["TOKEN"] == "secret")
         #expect(result.count == 2)
@@ -115,6 +115,25 @@ struct LocalContainersConfigAccessorTests {
     @Test("value(for:) returns nil for missing keys")
     func missingKey() {
         let result = LocalContainersConfig.value(
+            for: "DEFINITELY_NOT_A_REAL_KEY_\(UUID().uuidString)"
+        )
+        #expect(result == nil)
+    }
+}
+
+@Suite("LocalContainersSettings - public accessors")
+struct LocalContainersSettingsAccessorTests {
+    @Test("values and value(for:) are consistent")
+    func accessorsAgree() {
+        let all = LocalContainersSettings.values
+        for (key, expected) in all {
+            #expect(LocalContainersSettings.value(for: key) == expected)
+        }
+    }
+
+    @Test("value(for:) returns nil for missing keys")
+    func missingKey() {
+        let result = LocalContainersSettings.value(
             for: "DEFINITELY_NOT_A_REAL_KEY_\(UUID().uuidString)"
         )
         #expect(result == nil)
