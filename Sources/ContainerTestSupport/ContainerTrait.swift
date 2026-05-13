@@ -109,10 +109,6 @@ public struct ContainerTrait<R: ContainerRuntime>: SuiteTrait, TestScoping {
         logger: Logger
     ) async throws {
         let spec = key.spec
-        logger.info(
-            "Starting container",
-            metadata: ["image": "\(spec.configuration.image.imageReference)"]
-        )
         let mergedEnv = resolveEnvironment(
             for: spec,
             started: started,

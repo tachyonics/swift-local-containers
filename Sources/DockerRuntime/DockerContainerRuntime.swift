@@ -55,8 +55,6 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, Lo
         let request = buildCreateRequest(from: configuration)
         let response = try await client.createContainer(request, name: configuration.name)
 
-        logger.info("Starting container", metadata: ["image": "\(imageRef)", "id": "\(response.id)"])
-
         // Start the container
         try await client.startContainer(id: response.id)
 
@@ -67,6 +65,8 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, Lo
         let gateway = extractGateway(from: inspection.networkSettings)
         let bridgeIP = extractBridgeIPAddress(from: inspection.networkSettings)
         let host = resolveHost(gateway: gateway)
+
+        logger.info("Starting container", metadata: ["image": "\(imageRef)", "name": "\(inspection.name)"])
 
         return RunningContainer(
             id: response.id,
@@ -80,12 +80,12 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, Lo
     }
 
     public func stopContainer(_ container: RunningContainer) async throws {
-        logger.info("Stopping container", metadata: ["image": "\(container.image)", "id": "\(container.id)"])
+        logger.info("Stopping container", metadata: ["image": "\(container.image)", "name": "\(container.name)"])
         try await client.stopContainer(id: container.id)
     }
 
     public func removeContainer(_ container: RunningContainer) async throws {
-        logger.debug("Removing container", metadata: ["image": "\(container.image)", "id": "\(container.id)"])
+        logger.debug("Removing container", metadata: ["image": "\(container.image)", "name": "\(container.name)"])
         try await client.removeContainer(id: container.id, force: true)
     }
 
