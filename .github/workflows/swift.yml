@@ -16,7 +16,7 @@ jobs:
         swift-version: ["6.3", "6.2.4"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: SwiftyLab/setup-swift@v1
         with:
           swift-version: ${{ matrix.swift-version }}
@@ -57,7 +57,7 @@ jobs:
         swift-syntax-major: ["602", "603"]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: SwiftyLab/setup-swift@v1
         with:
           swift-version: ${{ matrix.swift-version }}
@@ -89,7 +89,7 @@ jobs:
     name: SwiftLint version 3.2.1
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: GitHub Action for SwiftLint
         uses: norio-nomura/action-swiftlint@3.2.1
   SwiftFormat:
@@ -99,7 +99,7 @@ jobs:
         swift-version: ["6.3"]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: SwiftyLab/setup-swift@v1
         with:
           swift-version: ${{ matrix.swift-version }}
@@ -116,7 +116,7 @@ jobs:
         swift-version: ["6.3"]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: SwiftyLab/setup-swift@v1
         with:
           swift-version: ${{ matrix.swift-version }}
@@ -140,14 +140,14 @@ jobs:
             -ignore-filename-regex=".build|Tests" \
             > coverage.lcov
       - name: Upload coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.lcov
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         if: always()
         with:
           files: test-results.xml
@@ -162,7 +162,7 @@ jobs:
         os: [macos-26]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Bootstrap
         # Required because the ContainerCodeGen build plugin runs `cdk
         # synth` on cdkapps[] entries during `swift build`, and that needs
@@ -177,7 +177,7 @@ jobs:
   # APIBreakage:
   #   runs-on: ubuntu-24.04
   #   steps:
-  #     - uses: actions/checkout@v6
+  #     - uses: actions/checkout@v7
   #       with:
   #         fetch-depth: 0
   #     - uses: SwiftyLab/setup-swift@v1
