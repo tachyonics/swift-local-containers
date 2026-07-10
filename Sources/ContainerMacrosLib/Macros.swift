@@ -2,6 +2,7 @@
 @_exported import DockerRuntime
 @_exported import LocalContainers
 @_exported import LocalStack
+@_exported import Logging
 @_exported import PlatformRuntime
 
 /// Scans properties for `@Container` / `@LocalStackContainer` attributes and
@@ -45,10 +46,17 @@ public macro Containers() =
 /// - Parameters:
 ///   - image: The OCI image reference (e.g. `"postgres:16"`).
 ///   - ports: Container ports to expose.
+///   - environment: Environment variables for the container (e.g.
+///     `["POSTGRES_PASSWORD": "postgres"]`). Many images need one to start.
+///   - waitStrategy: How to determine readiness. Defaults to `.port`; use
+///     `.log(_:)` for images (like Postgres) that accept connections only
+///     after the port has been open for a moment.
 @attached(accessor)
 public macro Container(
     image: String,
-    ports: [UInt16]
+    ports: [UInt16],
+    environment: [String: String] = [:],
+    waitStrategy: WaitStrategy = .port
 ) =
     #externalMacro(
         module: "ContainerMacros",
@@ -96,6 +104,7 @@ public macro DockerfileContainer(
     context: String = ".",
     dockerfile: String = "Dockerfile",
     waitStrategy: WaitStrategy = .port,
+    containerLogLevel: Logger.Level? = nil,
     environment: Any? = nil
 ) =
     #externalMacro(

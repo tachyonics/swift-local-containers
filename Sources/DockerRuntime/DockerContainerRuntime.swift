@@ -6,16 +6,32 @@ import Logging
 ///
 /// Uses ``DockerAPIClient`` to communicate with the Docker daemon over a Unix
 /// domain socket. Works with Docker and Podman.
-public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
+public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime, LogStreamingRuntime {
     private let client: DockerAPIClient
+    private let socketPath: String
     private let logger: Logger
 
     public init(
         socketPath: String = "/var/run/docker.sock",
-        logger: Logger = Logger(label: "DockerContainerRuntime")
+        logger: Logger? = nil
     ) {
-        self.client = DockerAPIClient(socketPath: socketPath, logger: logger)
-        self.logger = logger
+        let resolved = logger ?? LocalContainersLogging.makeLogger(label: "DockerContainerRuntime")
+        self.client = DockerAPIClient(socketPath: socketPath, logger: resolved)
+        self.socketPath = socketPath
+        self.logger = resolved
+    }
+
+    public func streamLogs(
+        container: RunningContainer,
+        level: Logger.Level
+    ) async {
+        await streamContainerLogs(
+            id: container.id,
+            containerName: container.name,
+            level: level,
+            socketPath: socketPath,
+            logger: logger
+        )
     }
 
     public func pullImage(_ reference: String) async throws {
@@ -34,7 +50,6 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         from configuration: ContainerConfiguration
     ) async throws -> RunningContainer {
         let imageRef = configuration.image.imageReference
-        logger.info("Starting container", metadata: ["image": "\(imageRef)"])
 
         // Build the Docker create request from the configuration
         let request = buildCreateRequest(from: configuration)
@@ -51,6 +66,8 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
         let bridgeIP = extractBridgeIPAddress(from: inspection.networkSettings)
         let host = resolveHost(gateway: gateway)
 
+        logger.info("Starting container", metadata: ["image": "\(imageRef)", "container": "\(inspection.name)"])
+
         return RunningContainer(
             id: response.id,
             name: inspection.name,
@@ -63,10 +80,12 @@ public struct DockerContainerRuntime: ContainerRuntime, ImageBuildingRuntime {
     }
 
     public func stopContainer(_ container: RunningContainer) async throws {
+        logger.info("Stopping container", metadata: ["image": "\(container.image)", "container": "\(container.name)"])
         try await client.stopContainer(id: container.id)
     }
 
     public func removeContainer(_ container: RunningContainer) async throws {
+        logger.debug("Removing container", metadata: ["image": "\(container.image)", "container": "\(container.name)"])
         try await client.removeContainer(id: container.id, force: true)
     }
 

@@ -1,3 +1,5 @@
+import Logging
+
 /// A mapping between a container port and a host port.
 public struct PortMapping: Sendable, Hashable {
     /// The port inside the container.
@@ -75,6 +77,11 @@ public struct ContainerConfiguration: Sendable {
     /// Maximum time to wait for the container to become ready.
     public let waitTimeout: Duration
 
+    /// When non-nil, the runtime streams the container's stdout+stderr to its
+    /// own logger at this level, with `container=<name>` metadata, until the
+    /// container exits. `nil` (the default) disables streaming.
+    public let containerLogLevel: Logger.Level?
+
     public init(
         image: ImageSource,
         ports: [PortMapping] = [],
@@ -84,7 +91,8 @@ public struct ContainerConfiguration: Sendable {
         command: [String]? = nil,
         waitStrategy: WaitStrategy = .port,
         healthCheck: HealthCheckConfig? = nil,
-        waitTimeout: Duration = .seconds(60)
+        waitTimeout: Duration = .seconds(60),
+        containerLogLevel: Logger.Level? = nil
     ) {
         self.image = image
         self.ports = ports
@@ -95,6 +103,7 @@ public struct ContainerConfiguration: Sendable {
         self.waitStrategy = waitStrategy
         self.healthCheck = healthCheck
         self.waitTimeout = waitTimeout
+        self.containerLogLevel = containerLogLevel
     }
 
     /// Returns a copy with the given port mappings, replacing any existing ones.
@@ -109,7 +118,24 @@ public struct ContainerConfiguration: Sendable {
             command: command,
             waitStrategy: waitStrategy,
             healthCheck: healthCheck,
-            waitTimeout: waitTimeout
+            waitTimeout: waitTimeout,
+            containerLogLevel: containerLogLevel
+        )
+    }
+
+    /// Returns a copy with the given container log level, replacing any existing one.
+    public func with(containerLogLevel: Logger.Level?) -> ContainerConfiguration {
+        ContainerConfiguration(
+            image: image,
+            ports: ports,
+            environment: environment,
+            volumes: volumes,
+            name: name,
+            command: command,
+            waitStrategy: waitStrategy,
+            healthCheck: healthCheck,
+            waitTimeout: waitTimeout,
+            containerLogLevel: containerLogLevel
         )
     }
 
@@ -126,7 +152,8 @@ public struct ContainerConfiguration: Sendable {
             command: command,
             waitStrategy: waitStrategy,
             healthCheck: healthCheck,
-            waitTimeout: waitTimeout
+            waitTimeout: waitTimeout,
+            containerLogLevel: containerLogLevel
         )
     }
 }

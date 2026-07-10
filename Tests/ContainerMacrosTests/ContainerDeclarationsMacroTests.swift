@@ -50,7 +50,60 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "postgres:16",
-                                ports: [PortMapping(containerPort: 5432)]
+                                ports: [PortMapping(containerPort: 5432)],
+                                waitStrategy: .port
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_DbKey.self)],
+                        runtime: PlatformRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations, Sendable {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testContainerWithEnvironmentAndWaitStrategy() throws {
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @Container(
+                    image: "postgres:16",
+                    ports: [5432],
+                    environment: ["POSTGRES_PASSWORD": "postgres"],
+                    waitStrategy: .log("ready to accept connections")
+                )
+                var db: RunningContainer
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var db: RunningContainer {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_DbKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return container
+                        }
+                    }
+
+                    private enum _DbKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: "postgres:16",
+                                ports: [PortMapping(containerPort: 5432)],
+                                environment: ["POSTGRES_PASSWORD": "postgres"], waitStrategy: .log("ready to accept connections")
                             )
                         )
                     }
@@ -167,7 +220,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "postgres:16",
-                                ports: [PortMapping(containerPort: 5432)]
+                                ports: [PortMapping(containerPort: 5432)],
+                                waitStrategy: .port
                             )
                         )
                     }
@@ -232,7 +286,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "app:latest",
-                                ports: [PortMapping(containerPort: 8080), PortMapping(containerPort: 8443)]
+                                ports: [PortMapping(containerPort: 8080), PortMapping(containerPort: 8443)],
+                                waitStrategy: .port
                             )
                         )
                     }
@@ -281,8 +336,6 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
             expandedSource: """
                 struct MyTests {
                     var aws
-
-
 
                     static let containerTrait = ContainerTrait(
                         keys: [ErasedContainerKey(_AwsKey.self)],
@@ -390,7 +443,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "redis:7",
-                                ports: [PortMapping(containerPort: 6379)]
+                                ports: [PortMapping(containerPort: 6379)],
+                                waitStrategy: .port
                             )
                         )
                     }
@@ -438,7 +492,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "postgres:16",
-                                ports: [PortMapping(containerPort: 5432)]
+                                ports: [PortMapping(containerPort: 5432)],
+                                waitStrategy: .port
                             )
                         )
                     }
@@ -542,7 +597,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "postgres:16",
-                                ports: [PortMapping(containerPort: 5432)]
+                                ports: [PortMapping(containerPort: 5432)],
+                                waitStrategy: .port
                             )
                         )
                     }
@@ -661,7 +717,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                         static let spec = ContainerSpec(
                             ContainerConfiguration(
                                 image: "postgres:16",
-                                ports: [PortMapping(containerPort: 5432)]
+                                ports: [PortMapping(containerPort: 5432)],
+                                waitStrategy: .port
                             )
                         )
                     }
@@ -735,7 +792,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -788,7 +846,64 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/web:test"
                                     )
                                 ),
-                                waitStrategy: .httpGet(path: "/health")
+                                waitStrategy: .httpGet(path: "/health"),
+                                containerLogLevel: nil
+                            )
+                        )
+                    }
+
+                    static let containerTrait = ContainerTrait(
+                        keys: [ErasedContainerKey(_WebKey.self)],
+                        runtime: DockerContainerRuntime()
+                    )
+                }
+
+                extension MyTests: ContainerDeclarations, Sendable {
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDockerfileContainerWithContainerLogLevel() throws {
+        // Verifies the `containerLogLevel:` argument is parsed and emitted
+        // verbatim into the generated `ContainerConfiguration` init.
+        assertMacroExpansion(
+            """
+            @Containers
+            struct MyTests {
+                @DockerfileContainer(containerLogLevel: .info)
+                var web: ServiceEndpoint
+            }
+            """,
+            expandedSource: """
+                struct MyTests {
+                    var web: ServiceEndpoint {
+                        get {
+                            guard let container = try? ContainerTestContext.current?.container(
+                                for: ObjectIdentifier(_WebKey.self)
+                            ) else {
+                                preconditionFailure(
+                                    "No container context — is this test inside a @Suite with containerTrait?"
+                                )
+                            }
+                            return ServiceEndpoint(from: container)
+                        }
+                    }
+
+                    private enum _WebKey: ContainerKey {
+                        static let spec = ContainerSpec(
+                            ContainerConfiguration(
+                                image: .build(
+                                    BuildSpec.resolvedAgainstPackage(
+                                        contextPath: ".",
+                                        from: #filePath,
+                                        dockerfile: "Dockerfile",
+                                        tag: "local-containers/web:test"
+                                    )
+                                ),
+                                waitStrategy: .port,
+                                containerLogLevel: .info
                             )
                         )
                     }
@@ -841,7 +956,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/api:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             )
                         )
                     }
@@ -904,7 +1020,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             ),
                             environmentProvider: {
                                 _envProvider(MyTests())
@@ -974,7 +1091,8 @@ final class ContainerDeclarationsMacroTests: XCTestCase {
                                         tag: "local-containers/taskcluster:test"
                                     )
                                 ),
-                                waitStrategy: .port
+                                waitStrategy: .port,
+                                containerLogLevel: nil
                             ),
                             environmentProvider: {
                                 _envProvider(MyTests())

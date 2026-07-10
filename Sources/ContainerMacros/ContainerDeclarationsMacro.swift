@@ -72,7 +72,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         // no-arg init suppresses auto-synthesis; the post-accessor-expansion
         // properties are computed, so init() needs no body.
         if annotatedProperties.contains(where: { property in
-            if case .dockerfile(_, _, _, .some) = property.kind { return true }
+            if case .dockerfile(_, _, _, _, .some) = property.kind { return true }
             return false
         }) {
             declarations.append("init() {}")
@@ -125,7 +125,9 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                             typeName: typeAnnotation,
                             kind: .container(
                                 image: parsed.image,
-                                ports: parsed.ports
+                                ports: parsed.ports,
+                                environment: parsed.environment,
+                                waitStrategy: parsed.waitStrategy
                             )
                         )
                     )
@@ -148,6 +150,7 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                 context: parsed.context,
                                 dockerfile: parsed.dockerfile,
                                 waitStrategy: parsed.waitStrategy,
+                                containerLogLevel: parsed.containerLogLevel,
                                 environment: parsed.environment
                             )
                         )
@@ -163,15 +166,14 @@ public struct ContainerDeclarationsMacro: MemberMacro {
 
     private static func parseContainerAttribute(
         _ attr: AttributeSyntax
-    ) -> (image: String, ports: [String]) {
-        var image = ""
-        var ports: [String] = []
+    ) -> ParsedContainerAttribute {
+        var parsed = ParsedContainerAttribute()
 
         guard
             let arguments = attr.arguments?
                 .as(LabeledExprListSyntax.self)
         else {
-            return (image, ports)
+            return parsed
         }
 
         for arg in arguments {
@@ -180,20 +182,27 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 if let stringLiteral = arg.expression
                     .as(StringLiteralExprSyntax.self)
                 {
-                    image = stringLiteral.segments.description
+                    parsed.image = stringLiteral.segments.description
                 }
             } else if label == "ports" {
                 if let arrayExpr = arg.expression
                     .as(ArrayExprSyntax.self)
                 {
                     for element in arrayExpr.elements {
-                        ports.append(element.expression.description)
+                        parsed.ports.append(element.expression.description)
                     }
                 }
+            } else if label == "environment" {
+                // Pass through verbatim — a `[String: String]` dictionary literal.
+                parsed.environment = arg.expression.description
+            } else if label == "waitStrategy" {
+                // Pass through verbatim — a `WaitStrategy` value (e.g. `.port`,
+                // `.log("…")`).
+                parsed.waitStrategy = arg.expression.description
             }
         }
 
-        return (image, ports)
+        return parsed
     }
 
     private static func parseLocalStackAttribute(
@@ -216,13 +225,6 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         }
 
         return "test-stack"
-    }
-
-    struct ParsedDockerfileAttribute {
-        var context: String = "."
-        var dockerfile: String = "Dockerfile"
-        var waitStrategy: String = ".port"
-        var environment: String?
     }
 
     private static func parseDockerfileAttribute(
@@ -253,6 +255,10 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 // Pass the expression through verbatim — it's a WaitStrategy enum
                 // value (e.g. `.port`, `.httpGet(path: "/health")`).
                 parsed.waitStrategy = arg.expression.description
+            } else if label == "containerLogLevel" {
+                // Pass through verbatim — a `Logger.Level?` expression like
+                // `.info` or `nil`. The generated init handles the optional.
+                parsed.containerLogLevel = arg.expression.description
             } else if label == "environment" {
                 // Pass the expression through verbatim — closure or key path of
                 // type `(Outer) -> [String: String]`. Splatted into a typed
@@ -273,17 +279,20 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         let keyName = "_\(property.name.capitalizedFirst)Key"
 
         switch property.kind {
-        case .container(let image, let ports):
+        case .container(let image, let ports, let environment, let waitStrategy):
             let portMappings = ports.map {
                 "PortMapping(containerPort: \($0))"
             }.joined(separator: ", ")
+            // Emit `environment:` only when supplied — otherwise it defaults to `[:]`.
+            let environmentArgument = environment.map { "environment: \($0), " } ?? ""
 
             return """
                 private enum \(raw: keyName): ContainerKey {
                     static let spec = ContainerSpec(
                         ContainerConfiguration(
                             image: \(literal: image),
-                            ports: [\(raw: portMappings)]
+                            ports: [\(raw: portMappings)],
+                            \(raw: environmentArgument)waitStrategy: \(raw: waitStrategy)
                         )
                     )
                 }
@@ -312,13 +321,20 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                 }
                 """
 
-        case .dockerfile(let context, let dockerfile, let waitStrategy, let environment):
+        case .dockerfile(
+            let context,
+            let dockerfile,
+            let waitStrategy,
+            let containerLogLevel,
+            let environment
+        ):
             return generateDockerfileKey(
                 keyName: keyName,
                 propertyName: property.name,
                 context: context,
                 dockerfile: dockerfile,
                 waitStrategy: waitStrategy,
+                containerLogLevel: containerLogLevel,
                 environment: environment,
                 enclosingTypeName: enclosingTypeName
             )
@@ -331,10 +347,12 @@ public struct ContainerDeclarationsMacro: MemberMacro {
         context: String,
         dockerfile: String,
         waitStrategy: String,
+        containerLogLevel: String?,
         environment: String?,
         enclosingTypeName: String
     ) -> DeclSyntax {
         let tag = "local-containers/\(propertyName.lowercased()):test"
+        let logLevelExpr = containerLogLevel ?? "nil"
 
         // No env provider: simple ContainerSpec with only configuration.
         guard let environment else {
@@ -350,7 +368,8 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                     tag: \(literal: tag)
                                 )
                             ),
-                            waitStrategy: \(raw: waitStrategy)
+                            waitStrategy: \(raw: waitStrategy),
+                            containerLogLevel: \(raw: logLevelExpr)
                         )
                     )
                 }
@@ -378,7 +397,8 @@ public struct ContainerDeclarationsMacro: MemberMacro {
                                 tag: \(literal: tag)
                             )
                         ),
-                        waitStrategy: \(raw: waitStrategy)
+                        waitStrategy: \(raw: waitStrategy),
+                        containerLogLevel: \(raw: logLevelExpr)
                     ),
                     environmentProvider: { _envProvider(\(raw: enclosingTypeName)()) }
                 )
@@ -469,18 +489,38 @@ extension ContainerDeclarationsMacro: ExtensionMacro {
 
 // MARK: - Supporting Types
 
+/// Parsed arguments of a `@Container(image:ports:environment:waitStrategy:)` attribute. The
+/// `environment` and `waitStrategy` expressions are captured verbatim and spliced into the
+/// generated `ContainerConfiguration`.
+struct ParsedContainerAttribute {
+    var image: String = ""
+    var ports: [String] = []
+    var environment: String?
+    var waitStrategy: String = ".port"
+}
+
+/// Parsed arguments of a `@DockerfileContainer(...)` attribute.
+struct ParsedDockerfileAttribute {
+    var context: String = "."
+    var dockerfile: String = "Dockerfile"
+    var waitStrategy: String = ".port"
+    var containerLogLevel: String?
+    var environment: String?
+}
+
 struct AnnotatedProperty {
     let name: String
     let typeName: TypeSyntax?
     let kind: Kind
 
     enum Kind {
-        case container(image: String, ports: [String])
+        case container(image: String, ports: [String], environment: String?, waitStrategy: String)
         case localStack(stackName: String)
         case dockerfile(
             context: String,
             dockerfile: String,
             waitStrategy: String,
+            containerLogLevel: String?,
             environment: String?
         )
     }
