@@ -1,10 +1,11 @@
 {
   "_comment_aws_cdk_pin": "aws-cdk is pinned below 2.1114.0 because cdklocal requires legacy internal exports (lib/cdk-toolkit, lib/serialize, etc.) that aws-cdk removed in 2.1114.0. See https://github.com/localstack/aws-cdk-local/issues/126. Unpin once cdklocal ships a fix.",
+  "_comment_aws_cdk_lib_pin": "aws-cdk-lib is pinned (not a caret range) to a version whose Cloud Assembly schema the pinned CLI can read. aws-cdk-lib bumped the schema to v54 in June 2026 (2.258.0+), which needs aws-cdk CLI >= 2.1130.0 — but the CLI is held at 2.1113.0 (max schema v53) for the cdklocal reason above. 2.250.0 emits v53. Keep coupled to the aws-cdk pin.",
   "name": "cdk-integration-test-app",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "aws-cdk-lib": "^2.140.0",
+    "aws-cdk-lib": "2.250.0",
     "constructs": "^10.0.0"
   },
   "devDependencies": {
