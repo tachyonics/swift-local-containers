@@ -93,9 +93,12 @@ jobs:
     # branch because SPM version ranges don't resolve pre-release tags. Uses the nightly 6.4
     # container since SwiftyLab/setup-swift only installs released toolchains.
     #
-    # Products only (no tests): the suite needs the cdk bootstrap + Docker + LocalStack, which are
-    # infra concerns rather than swift-syntax/language compatibility. swift-syntax 603 on its
-    # aligned release compiler is already covered by the SwiftSyntaxMatrix job above.
+    # Builds the library products by name rather than a bare `swift build`: the latter
+    # materialises the IntegrationTests build-tool plugin (cdk synth), which needs the npm
+    # bootstrap and Docker/LocalStack — infra unrelated to swift-syntax/6.4 compatibility. Naming
+    # the products compiles the macros and libraries (the swift-syntax surface) with none of that.
+    # swift-syntax 603 on its aligned release compiler is already covered by the SwiftSyntaxMatrix
+    # job above.
     runs-on: ubuntu-24.04
     container: swiftlang/swift:nightly-6.4.x-noble
     steps:
@@ -108,8 +111,15 @@ jobs:
           grep swift-syntax Package.swift
       - name: Resolve dependencies
         run: swift package update
-      - name: Build
-        run: swift build -c release -Xswiftc -strict-concurrency=complete
+      - name: Build library products
+        run: |
+          swift build -c release -Xswiftc -strict-concurrency=complete \
+            --product LocalContainers \
+            --product DockerRuntime \
+            --product PlatformRuntime \
+            --product LocalStack \
+            --product ContainerTestSupport \
+            --product ContainerMacrosLib
 
   SwiftLint:
     name: SwiftLint version 3.2.1
